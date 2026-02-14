@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_RZD_LK" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.44.0">
+  <bpmn:process id="Process_RZD_LK_Ticketing" name="Личный кабинет РЖД: выбор маршрута и покупка билета" isExecutable="false">
+    <bpmn:startEvent id="StartEvent_Start" name="Начало">
+      <bpmn:outgoing>Flow_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_OpenLK" name="Открыть личный кабинет РЖД">
+      <bpmn:incoming>Flow_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_02</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_HasAccount" name="Есть учетная запись?">
+      <bpmn:incoming>Flow_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_03_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_04_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_Register" name="Регистрация / восстановление доступа">
+      <bpmn:incoming>Flow_04_No</bpmn:incoming>
+      <bpmn:outgoing>Flow_1577y3d</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Login" name="Авторизация в личном кабинете">
+      <bpmn:incoming>Flow_03_Yes</bpmn:incoming>
+      <bpmn:incoming>Flow_1577y3d</bpmn:incoming>
+      <bpmn:outgoing>Flow_06</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_EnterSearch" name="Ввести маршрут, дату, пассажиров">
+      <bpmn:incoming>Flow_06</bpmn:incoming>
+      <bpmn:incoming>Flow_13_NoSeatsLoop</bpmn:incoming>
+      <bpmn:outgoing>Flow_07</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_CheckSchedule" name="Получить варианты поездов и тарифов">
+      <bpmn:incoming>Flow_07</bpmn:incoming>
+      <bpmn:outgoing>Flow_08</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_RouteFound" name="Маршрут найден?">
+      <bpmn:incoming>Flow_08</bpmn:incoming>
+      <bpmn:outgoing>Flow_09_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_10_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_ShowOptions" name="Показать доступные варианты">
+      <bpmn:incoming>Flow_09_Yes</bpmn:incoming>
+      <bpmn:incoming>Flow_16_BookingFailLoop</bpmn:incoming>
+      <bpmn:outgoing>Flow_11</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_SelectTrain" name="Выбрать поезд, вагон и место">
+      <bpmn:incoming>Flow_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_12</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_SeatsAvailable" name="Места доступны?">
+      <bpmn:incoming>Flow_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_14_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_13_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_NoSeatsNotice" name="Сообщить об отсутствии мест">
+      <bpmn:incoming>Flow_13_No</bpmn:incoming>
+      <bpmn:outgoing>Flow_13_NoSeatsLoop</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_EnterPassengerData" name="Ввести данные пассажира и контакты">
+      <bpmn:incoming>Flow_14_Yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_15</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_CreateBooking" name="Создать бронь заказа">
+      <bpmn:incoming>Flow_15</bpmn:incoming>
+      <bpmn:outgoing>Flow_16</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_BookingCreated" name="Бронь создана?">
+      <bpmn:incoming>Flow_16</bpmn:incoming>
+      <bpmn:outgoing>Flow_17_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_16_BookingFailLoop</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_GoToPayment" name="Подтвердить и перейти к оплате">
+      <bpmn:incoming>Flow_17_Yes</bpmn:incoming>
+      <bpmn:incoming>Flow_24_RetryYesLoop</bpmn:incoming>
+      <bpmn:outgoing>Flow_18</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_ProcessPayment" name="Провести оплату через платежный шлюз">
+      <bpmn:incoming>Flow_18</bpmn:incoming>
+      <bpmn:outgoing>Flow_19</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_PaymentSuccess" name="Оплата успешна?">
+      <bpmn:incoming>Flow_19</bpmn:incoming>
+      <bpmn:outgoing>Flow_20_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_21_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_IssueTicket" name="Сформировать электронный билет">
+      <bpmn:incoming>Flow_20_Yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_22</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_SendTicket" name="Отправить билет в ЛК / email">
+      <bpmn:incoming>Flow_22</bpmn:incoming>
+      <bpmn:outgoing>Flow_23</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_RetryPayment" name="Повторить оплату?">
+      <bpmn:incoming>Flow_21_No</bpmn:incoming>
+      <bpmn:outgoing>Flow_24_RetryYesLoop</bpmn:outgoing>
+      <bpmn:outgoing>Flow_25_RetryNo</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_CancelBooking" name="Отменить бронь">
+      <bpmn:incoming>Flow_25_RetryNo</bpmn:incoming>
+      <bpmn:outgoing>Flow_26</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndEvent_Success" name="Билет куплен">
+      <bpmn:incoming>Flow_23</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndEvent_NoRoute" name="Маршрут не найден">
+      <bpmn:incoming>Flow_10_No</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndEvent_Cancelled" name="Покупка отменена">
+      <bpmn:incoming>Flow_26</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_01" sourceRef="StartEvent_Start" targetRef="Task_OpenLK" />
+    <bpmn:sequenceFlow id="Flow_02" sourceRef="Task_OpenLK" targetRef="Gateway_HasAccount" />
+    <bpmn:sequenceFlow id="Flow_03_Yes" name="Да" sourceRef="Gateway_HasAccount" targetRef="Task_Login" />
+    <bpmn:sequenceFlow id="Flow_04_No" name="Нет" sourceRef="Gateway_HasAccount" targetRef="Task_Register" />
+    <bpmn:sequenceFlow id="Flow_06" sourceRef="Task_Login" targetRef="Task_EnterSearch" />
+    <bpmn:sequenceFlow id="Flow_07" sourceRef="Task_EnterSearch" targetRef="Task_CheckSchedule" />
+    <bpmn:sequenceFlow id="Flow_08" sourceRef="Task_CheckSchedule" targetRef="Gateway_RouteFound" />
+    <bpmn:sequenceFlow id="Flow_09_Yes" name="Да" sourceRef="Gateway_RouteFound" targetRef="Task_ShowOptions" />
+    <bpmn:sequenceFlow id="Flow_10_No" name="Нет" sourceRef="Gateway_RouteFound" targetRef="EndEvent_NoRoute" />
+    <bpmn:sequenceFlow id="Flow_11" sourceRef="Task_ShowOptions" targetRef="Task_SelectTrain" />
+    <bpmn:sequenceFlow id="Flow_12" sourceRef="Task_SelectTrain" targetRef="Gateway_SeatsAvailable" />
+    <bpmn:sequenceFlow id="Flow_13_No" name="Нет" sourceRef="Gateway_SeatsAvailable" targetRef="Task_NoSeatsNotice" />
+    <bpmn:sequenceFlow id="Flow_13_NoSeatsLoop" sourceRef="Task_NoSeatsNotice" targetRef="Task_EnterSearch" />
+    <bpmn:sequenceFlow id="Flow_14_Yes" name="Да" sourceRef="Gateway_SeatsAvailable" targetRef="Task_EnterPassengerData" />
+    <bpmn:sequenceFlow id="Flow_15" sourceRef="Task_EnterPassengerData" targetRef="Task_CreateBooking" />
+    <bpmn:sequenceFlow id="Flow_16" sourceRef="Task_CreateBooking" targetRef="Gateway_BookingCreated" />
+    <bpmn:sequenceFlow id="Flow_16_BookingFailLoop" name="Нет" sourceRef="Gateway_BookingCreated" targetRef="Task_ShowOptions" />
+    <bpmn:sequenceFlow id="Flow_17_Yes" name="Да" sourceRef="Gateway_BookingCreated" targetRef="Task_GoToPayment" />
+    <bpmn:sequenceFlow id="Flow_18" sourceRef="Task_GoToPayment" targetRef="Task_ProcessPayment" />
+    <bpmn:sequenceFlow id="Flow_19" sourceRef="Task_ProcessPayment" targetRef="Gateway_PaymentSuccess" />
+    <bpmn:sequenceFlow id="Flow_20_Yes" name="Да" sourceRef="Gateway_PaymentSuccess" targetRef="Task_IssueTicket" />
+    <bpmn:sequenceFlow id="Flow_21_No" name="Нет" sourceRef="Gateway_PaymentSuccess" targetRef="Gateway_RetryPayment" />
+    <bpmn:sequenceFlow id="Flow_22" sourceRef="Task_IssueTicket" targetRef="Task_SendTicket" />
+    <bpmn:sequenceFlow id="Flow_23" sourceRef="Task_SendTicket" targetRef="EndEvent_Success" />
+    <bpmn:sequenceFlow id="Flow_24_RetryYesLoop" name="Да" sourceRef="Gateway_RetryPayment" targetRef="Task_GoToPayment" />
+    <bpmn:sequenceFlow id="Flow_25_RetryNo" name="Нет" sourceRef="Gateway_RetryPayment" targetRef="Task_CancelBooking" />
+    <bpmn:sequenceFlow id="Flow_26" sourceRef="Task_CancelBooking" targetRef="EndEvent_Cancelled" />
+    <bpmn:sequenceFlow id="Flow_1577y3d" sourceRef="Task_Register" targetRef="Task_Login" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_RZD">
+    <bpmndi:BPMNPlane id="BPMNPlane_RZD" bpmnElement="Process_RZD_LK_Ticketing">
+      <bpmndi:BPMNShape id="StartEvent_Start_di" bpmnElement="StartEvent_Start">
+        <dc:Bounds x="160" y="180" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="159" y="216" width="39" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_OpenLK_di" bpmnElement="Task_OpenLK">
+        <dc:Bounds x="220" y="158" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_HasAccount_di" bpmnElement="Gateway_HasAccount" isMarkerVisible="true">
+        <dc:Bounds x="400" y="173" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="392" y="223" width="67" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Register_di" bpmnElement="Task_Register">
+        <dc:Bounds x="490" y="50" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Login_di" bpmnElement="Task_Login">
+        <dc:Bounds x="490" y="158" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_EnterSearch_di" bpmnElement="Task_EnterSearch">
+        <dc:Bounds x="700" y="158" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CheckSchedule_di" bpmnElement="Task_CheckSchedule">
+        <dc:Bounds x="930" y="158" width="170" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_RouteFound_di" bpmnElement="Gateway_RouteFound" isMarkerVisible="true">
+        <dc:Bounds x="1140" y="173" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1142" y="223" width="47" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ShowOptions_di" bpmnElement="Task_ShowOptions">
+        <dc:Bounds x="1240" y="158" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SelectTrain_di" bpmnElement="Task_SelectTrain">
+        <dc:Bounds x="1450" y="158" width="170" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_SeatsAvailable_di" bpmnElement="Gateway_SeatsAvailable" isMarkerVisible="true">
+        <dc:Bounds x="1650" y="173" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1630" y="223" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_NoSeatsNotice_di" bpmnElement="Task_NoSeatsNotice">
+        <dc:Bounds x="1740" y="50" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_EnterPassengerData_di" bpmnElement="Task_EnterPassengerData">
+        <dc:Bounds x="1740" y="158" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CreateBooking_di" bpmnElement="Task_CreateBooking">
+        <dc:Bounds x="1970" y="158" width="170" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_BookingCreated_di" bpmnElement="Gateway_BookingCreated" isMarkerVisible="true">
+        <dc:Bounds x="2170" y="173" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2154" y="223" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_GoToPayment_di" bpmnElement="Task_GoToPayment">
+        <dc:Bounds x="2260" y="158" width="170" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ProcessPayment_di" bpmnElement="Task_ProcessPayment">
+        <dc:Bounds x="2460" y="158" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_PaymentSuccess_di" bpmnElement="Gateway_PaymentSuccess" isMarkerVisible="true">
+        <dc:Bounds x="2670" y="173" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2670" y="223" width="51" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_IssueTicket_di" bpmnElement="Task_IssueTicket">
+        <dc:Bounds x="2760" y="158" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SendTicket_di" bpmnElement="Task_SendTicket">
+        <dc:Bounds x="2940" y="158" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_RetryPayment_di" bpmnElement="Gateway_RetryPayment" isMarkerVisible="true">
+        <dc:Bounds x="2760" y="300" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2758" y="350" width="54" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CancelBooking_di" bpmnElement="Task_CancelBooking">
+        <dc:Bounds x="2870" y="285" width="170" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Success_di" bpmnElement="EndEvent_Success">
+        <dc:Bounds x="3130" y="180" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3114" y="216" width="69" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_NoRoute_di" bpmnElement="EndEvent_NoRoute">
+        <dc:Bounds x="1250" y="300" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1237" y="336" width="63" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Cancelled_di" bpmnElement="EndEvent_Cancelled">
+        <dc:Bounds x="3070" y="307" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3064" y="343" width="49" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01">
+        <di:waypoint x="196" y="198" />
+        <di:waypoint x="220" y="198" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_02_di" bpmnElement="Flow_02">
+        <di:waypoint x="360" y="198" />
+        <di:waypoint x="400" y="198" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_03_Yes_di" bpmnElement="Flow_03_Yes">
+        <di:waypoint x="450" y="198" />
+        <di:waypoint x="490" y="198" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="463" y="173" width="14" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_04_No_di" bpmnElement="Flow_04_No">
+        <di:waypoint x="425" y="173" />
+        <di:waypoint x="425" y="90" />
+        <di:waypoint x="490" y="90" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="431" y="122" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_06_di" bpmnElement="Flow_06">
+        <di:waypoint x="650" y="198" />
+        <di:waypoint x="700" y="198" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_13_NoSeatsLoop_di" bpmnElement="Flow_13_NoSeatsLoop">
+        <di:waypoint x="1830" y="130" />
+        <di:waypoint x="1830" y="280" />
+        <di:waypoint x="790" y="280" />
+        <di:waypoint x="790" y="238" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_07_di" bpmnElement="Flow_07">
+        <di:waypoint x="880" y="198" />
+        <di:waypoint x="930" y="198" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_08_di" bpmnElement="Flow_08">
+        <di:waypoint x="1100" y="198" />
+        <di:waypoint x="1140" y="198" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_09_Yes_di" bpmnElement="Flow_09_Yes">
+        <di:waypoint x="1190" y="198" />
+        <di:waypoint x="1240" y="198" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1208" y="173" width="14" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_10_No_di" bpmnElement="Flow_10_No">
+        <di:waypoint x="1165" y="223" />
+        <di:waypoint x="1165" y="318" />
+        <di:waypoint x="1250" y="318" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1171" y="261" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_16_BookingFailLoop_di" bpmnElement="Flow_16_BookingFailLoop">
+        <di:waypoint x="2195" y="223" />
+        <di:waypoint x="2195" y="360" />
+        <di:waypoint x="1330" y="360" />
+        <di:waypoint x="1330" y="238" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1753" y="335" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11">
+        <di:waypoint x="1420" y="198" />
+        <di:waypoint x="1450" y="198" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12">
+        <di:waypoint x="1620" y="198" />
+        <di:waypoint x="1650" y="198" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_13_No_di" bpmnElement="Flow_13_No">
+        <di:waypoint x="1675" y="173" />
+        <di:waypoint x="1675" y="90" />
+        <di:waypoint x="1740" y="90" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1681" y="122" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_14_Yes_di" bpmnElement="Flow_14_Yes">
+        <di:waypoint x="1700" y="198" />
+        <di:waypoint x="1740" y="198" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1713" y="173" width="14" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_15_di" bpmnElement="Flow_15">
+        <di:waypoint x="1940" y="198" />
+        <di:waypoint x="1970" y="198" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_16_di" bpmnElement="Flow_16">
+        <di:waypoint x="2140" y="198" />
+        <di:waypoint x="2170" y="198" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_17_Yes_di" bpmnElement="Flow_17_Yes">
+        <di:waypoint x="2220" y="198" />
+        <di:waypoint x="2260" y="198" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2233" y="173" width="14" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_24_RetryYesLoop_di" bpmnElement="Flow_24_RetryYesLoop">
+        <di:waypoint x="2785" y="300" />
+        <di:waypoint x="2785" y="260" />
+        <di:waypoint x="2345" y="260" />
+        <di:waypoint x="2345" y="238" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2558" y="235" width="14" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_18_di" bpmnElement="Flow_18">
+        <di:waypoint x="2430" y="198" />
+        <di:waypoint x="2460" y="198" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_19_di" bpmnElement="Flow_19">
+        <di:waypoint x="2640" y="198" />
+        <di:waypoint x="2670" y="198" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_20_Yes_di" bpmnElement="Flow_20_Yes">
+        <di:waypoint x="2720" y="198" />
+        <di:waypoint x="2760" y="198" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2733" y="173" width="14" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_21_No_di" bpmnElement="Flow_21_No">
+        <di:waypoint x="2695" y="223" />
+        <di:waypoint x="2695" y="325" />
+        <di:waypoint x="2760" y="325" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2701" y="264" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_22_di" bpmnElement="Flow_22">
+        <di:waypoint x="2910" y="198" />
+        <di:waypoint x="2940" y="198" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_23_di" bpmnElement="Flow_23">
+        <di:waypoint x="3090" y="198" />
+        <di:waypoint x="3130" y="198" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_25_RetryNo_di" bpmnElement="Flow_25_RetryNo">
+        <di:waypoint x="2810" y="325" />
+        <di:waypoint x="2870" y="325" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2831" y="300" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_26_di" bpmnElement="Flow_26">
+        <di:waypoint x="3040" y="325" />
+        <di:waypoint x="3070" y="325" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1577y3d_di" bpmnElement="Flow_1577y3d">
+        <di:waypoint x="570" y="130" />
+        <di:waypoint x="570" y="158" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
