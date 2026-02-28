@@ -23,7 +23,20 @@ class OrderController(
     fun payOrder(
         @PathVariable orderId: String,
         @RequestBody request: PayOrderRequest,
+    ): ResponseEntity<Any> {
+        val response = ticketProcessService.payOrder(orderId, request)
+        return when (response) {
+            is PayOrderSuccessResponse -> ResponseEntity.ok(response)
+            is PayOrderPending3dsResponse -> ResponseEntity.status(HttpStatus.ACCEPTED).body(response)
+            else -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+        }
+    }
+
+    @PostMapping("/orders/{orderId}/pay/confirm-3ds")
+    fun confirm3ds(
+        @PathVariable orderId: String,
+        @RequestBody request: Confirm3dsRequest,
     ): ResponseEntity<PayOrderSuccessResponse> {
-        return ResponseEntity.ok(ticketProcessService.payOrder(orderId, request))
+        return ResponseEntity.ok(ticketProcessService.confirm3ds(orderId, request))
     }
 }

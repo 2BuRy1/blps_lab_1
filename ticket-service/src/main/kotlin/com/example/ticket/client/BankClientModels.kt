@@ -9,13 +9,20 @@ data class BankPayRequestPayload(
     val cvv: String,
 )
 
+data class BankConfirm3dsPayload(
+    val code: String,
+)
+
 data class BankPayDecision(
     val status: Status,
     val reason: String? = null,
+    @JsonProperty("payment_id") val paymentId: String? = null,
+    @JsonProperty("challenge_message") val challengeMessage: String? = null,
 ) {
     enum class Status {
         SUCCESS,
         DECLINED,
+        REQUIRES_3DS,
     }
 }
 

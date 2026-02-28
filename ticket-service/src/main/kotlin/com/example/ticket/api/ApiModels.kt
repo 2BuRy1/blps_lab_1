@@ -58,6 +58,20 @@ data class PayOrderSuccessResponse(
     }
 }
 
+data class PayOrderPending3dsResponse(
+    val status: Status,
+    val paymentId: String,
+    val message: String? = null,
+) {
+    enum class Status {
+        PENDING_3DS,
+    }
+}
+
+data class Confirm3dsRequest(
+    val code: String,
+)
+
 data class Ticket(
     val ticketId: String,
     val from: String,

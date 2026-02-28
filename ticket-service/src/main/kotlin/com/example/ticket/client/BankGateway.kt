@@ -48,6 +48,34 @@ class BankGateway(
         }
     }
 
+    fun confirm3ds(paymentId: String, code: String): BankPayDecision {
+        val payload = BankConfirm3dsPayload(code = code)
+
+        return try {
+            bankRestClient.post()
+                .uri("/bank/pay/{paymentId}/confirm-3ds", paymentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .body(BankPayDecision::class.java)
+                ?: throw IllegalStateException("Empty bank response")
+        } catch (ex: RestClientResponseException) {
+            if (ex.statusCode.value() == 400) {
+                throw ValidationException(
+                    details = listOf(
+                        ValidationDetail(
+                            field = "code",
+                            issue = parseBankErrorMessage(ex.responseBodyAsString),
+                        )
+                    )
+                )
+            }
+            BankPayDecision(status = BankPayDecision.Status.DECLINED, reason = "BANK_UNAVAILABLE")
+        } catch (_: Exception) {
+            BankPayDecision(status = BankPayDecision.Status.DECLINED, reason = "BANK_UNAVAILABLE")
+        }
+    }
+
     private fun parseBankErrorMessage(body: String): String {
         return try {
             objectMapper.readValue(body, BankErrorPayload::class.java).message

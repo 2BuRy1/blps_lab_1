@@ -29,6 +29,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BankErrorResponse"
+  /bank/pay/{paymentId}/confirm-3ds:
+    post:
+      summary: Confirm 3DS challenge
+      operationId: confirm3ds
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Confirm3dsRequest"
+      responses:
+        "200":
+          description: Payment decision after 3DS
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankPayResponse"
+        "400":
+          description: Invalid 3DS request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankErrorResponse"
+        "404":
+          description: Payment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankErrorResponse"
 
 components:
   schemas:
@@ -58,13 +93,29 @@ components:
       properties:
         status:
           type: string
-          enum: [SUCCESS, DECLINED]
+          enum: [SUCCESS, DECLINED, REQUIRES_3DS]
           example: SUCCESS
         reason:
           type: string
           nullable: true
           description: Optional reason for decline
           example: "INSUFFICIENT_FUNDS"
+        payment_id:
+          type: string
+          nullable: true
+          example: "pay_123"
+        challenge_message:
+          type: string
+          nullable: true
+          example: "Confirm 3DS challenge"
+
+    Confirm3dsRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          example: "123456"
 
     BankErrorResponse:
       type: object

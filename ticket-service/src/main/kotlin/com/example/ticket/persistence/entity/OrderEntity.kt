@@ -37,6 +37,9 @@ class OrderEntity(
     @Column(name = "status", nullable = false)
     var status: OrderStatus,
 
+    @Column(name = "bank_payment_id")
+    var bankPaymentId: String? = null,
+
     @Column(name = "ticket_id")
     var ticketId: String? = null,
 )

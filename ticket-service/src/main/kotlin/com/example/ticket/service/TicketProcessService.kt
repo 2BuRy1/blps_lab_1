@@ -1,10 +1,12 @@
 package com.example.ticket.service
 
+import com.example.ticket.api.Confirm3dsRequest
 import com.example.ticket.api.ConflictError
 import com.example.ticket.api.CreateOrderRequest
 import com.example.ticket.api.NotFoundError
 import com.example.ticket.api.OrderCreatedResponse
 import com.example.ticket.api.Passenger
+import com.example.ticket.api.PayOrderPending3dsResponse
 import com.example.ticket.api.PayOrderRequest
 import com.example.ticket.api.PayOrderSuccessResponse
 import com.example.ticket.api.RouteOption
@@ -119,7 +121,7 @@ class TicketProcessService(
         val seatTaken = orderRepository.existsByRouteRouteIdAndSeatAndStatusIn(
             routeId = route.routeId,
             seat = request.seat,
-            statuses = listOf(OrderStatus.CREATED, OrderStatus.PAID),
+            statuses = listOf(OrderStatus.CREATED, OrderStatus.PENDING_3DS, OrderStatus.PAID),
         )
         if (seatTaken) {
             throw ConflictException(
@@ -151,7 +153,7 @@ class TicketProcessService(
     }
 
     @Transactional
-    fun payOrder(orderId: String, request: PayOrderRequest): PayOrderSuccessResponse {
+    fun payOrder(orderId: String, request: PayOrderRequest): Any {
         validatePayOrderRequest(request)
 
         val order = orderRepository.findByOrderIdForUpdate(orderId)
@@ -168,44 +170,62 @@ class TicketProcessService(
         }
 
         val bankResult = bankGateway.authorize(amount = order.amount, request = request)
-        when (bankResult.status) {
-            BankPayDecision.Status.SUCCESS -> {
-                val ticket = TicketEntity(
-                    ticketId = nextTicketId(),
-                    route = order.route,
-                    seat = order.seat,
-                    passportId = order.passportId,
-                    fullName = order.fullName,
-                )
-                ticketRepository.save(ticket)
 
-                order.status = OrderStatus.PAID
-                order.ticketId = ticket.ticketId
+        return when (bankResult.status) {
+            BankPayDecision.Status.SUCCESS -> issueTicket(order)
+
+            BankPayDecision.Status.REQUIRES_3DS -> {
+                val paymentId = bankResult.paymentId
+                    ?: throw IllegalStateException("Bank response missing payment_id for REQUIRES_3DS")
+
+                order.status = OrderStatus.PENDING_3DS
+                order.bankPaymentId = paymentId
                 orderRepository.save(order)
 
-                return PayOrderSuccessResponse(
-                    status = PayOrderSuccessResponse.Status.PAID,
-                    ticketId = ticket.ticketId,
+                PayOrderPending3dsResponse(
+                    status = PayOrderPending3dsResponse.Status.PENDING_3DS,
+                    paymentId = paymentId,
+                    message = bankResult.challengeMessage ?: "Confirm 3DS challenge",
                 )
             }
 
             BankPayDecision.Status.DECLINED -> {
-                val route = routeRepository.findByRouteIdForUpdate(order.route.routeId)
-                    ?: throw NotFoundException(
-                        resource = NotFoundError.Resource.ROUTE,
-                        message = "Route not found.",
-                    )
-                route.reservedSeats = (route.reservedSeats - 1).coerceAtLeast(0)
-                route.freeSeats = (route.freeSeats + 1).coerceAtMost(route.capacity)
-                routeRepository.save(route)
-
-                order.status = OrderStatus.DECLINED
-                orderRepository.save(order)
-
-                throw PaymentDeclinedException(
-                    "Payment was declined by the bank${bankResult.reason?.let { ": $it" } ?: "."}",
-                )
+                declineOrder(order, bankResult.reason)
             }
+        }
+    }
+
+    @Transactional
+    fun confirm3ds(orderId: String, request: Confirm3dsRequest): PayOrderSuccessResponse {
+        validateConfirm3dsRequest(request)
+
+        val order = orderRepository.findByOrderIdForUpdate(orderId)
+            ?: throw NotFoundException(
+                resource = NotFoundError.Resource.ORDER,
+                message = "Order not found.",
+            )
+
+        if (order.status != OrderStatus.PENDING_3DS) {
+            throw ConflictException(
+                code = ConflictError.Code.ORDER_STATE_INVALID,
+                message = "Order is not waiting for 3DS confirmation.",
+            )
+        }
+
+        val paymentId = order.bankPaymentId
+            ?: throw ConflictException(
+                code = ConflictError.Code.ORDER_STATE_INVALID,
+                message = "Bank payment id is missing.",
+            )
+
+        val bankResult = bankGateway.confirm3ds(paymentId = paymentId, code = request.code)
+        return when (bankResult.status) {
+            BankPayDecision.Status.SUCCESS -> issueTicket(order)
+            BankPayDecision.Status.DECLINED -> declineOrder(order, bankResult.reason)
+            BankPayDecision.Status.REQUIRES_3DS -> throw ConflictException(
+                code = ConflictError.Code.ORDER_STATE_INVALID,
+                message = "3DS confirmation is still pending.",
+            )
         }
     }
 
@@ -232,6 +252,48 @@ class TicketProcessService(
         )
     }
 
+    private fun issueTicket(order: OrderEntity): PayOrderSuccessResponse {
+        val ticket = TicketEntity(
+            ticketId = nextTicketId(),
+            route = order.route,
+            seat = order.seat,
+            passportId = order.passportId,
+            fullName = order.fullName,
+        )
+        ticketRepository.save(ticket)
+
+        order.status = OrderStatus.PAID
+        order.ticketId = ticket.ticketId
+        orderRepository.save(order)
+
+        return PayOrderSuccessResponse(
+            status = PayOrderSuccessResponse.Status.PAID,
+            ticketId = ticket.ticketId,
+        )
+    }
+
+    private fun declineOrder(order: OrderEntity, reason: String?): Nothing {
+        releaseReservedSeat(order)
+        order.status = OrderStatus.DECLINED
+        orderRepository.save(order)
+
+        throw PaymentDeclinedException(
+            "Payment was declined by the bank${reason?.let { ": $it" } ?: "."}",
+        )
+    }
+
+    private fun releaseReservedSeat(order: OrderEntity) {
+        val route = routeRepository.findByRouteIdForUpdate(order.route.routeId)
+            ?: throw NotFoundException(
+                resource = NotFoundError.Resource.ROUTE,
+                message = "Route not found.",
+            )
+
+        route.reservedSeats = (route.reservedSeats - 1).coerceAtLeast(0)
+        route.freeSeats = (route.freeSeats + 1).coerceAtMost(route.capacity)
+        routeRepository.save(route)
+    }
+
     private fun routeSpecification(criteria: RouteSearchCriteria): Specification<RouteEntity> {
         return Specification { root, _, cb ->
             val predicates = mutableListOf<Predicate>()
@@ -244,7 +306,7 @@ class TicketProcessService(
                 predicates += cb.equal(cb.upper(root.get("fromTerminal")), it.uppercase())
             }
             criteria.toTerminal?.let {
-                predicates += cb.equal(cb.upper(root.get("toTerminal")), it.uppercase())
+                predicates += cb.equal(cb.upper(root.get<String>("toTerminal")), it.uppercase())
             }
             criteria.minPrice?.let {
                 predicates += cb.greaterThanOrEqualTo(root.get("price"), it)
@@ -302,6 +364,14 @@ class TicketProcessService(
 
         if (details.isNotEmpty()) {
             throw ValidationException(details = details)
+        }
+    }
+
+    private fun validateConfirm3dsRequest(request: Confirm3dsRequest) {
+        if (!request.code.matches(Regex("^\\d{6}$"))) {
+            throw ValidationException(
+                details = listOf(ValidationDetail("code", "must be 6 digits")),
+            )
         }
     }
 

@@ -18,6 +18,9 @@ class PaymentAttemptEntity(
     @Column(name = "amount", nullable = false)
     var amount: Int,
 
+    @Column(name = "payment_id", unique = true)
+    var paymentId: String? = null,
+
     @Column(name = "card_number_last4", nullable = false)
     var cardNumberLast4: String,
 
@@ -26,6 +29,9 @@ class PaymentAttemptEntity(
 
     @Column(name = "reason")
     var reason: String?,
+
+    @Column(name = "three_ds_code")
+    var threeDsCode: String? = null,
 
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now(),
