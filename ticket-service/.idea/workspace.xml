@@ -4,24 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="41a9f74a-22f5-492b-b8e9-386b6e7fb110" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../bank-service/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankApiModels.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankApiModels.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankController.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankController.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankExceptionHandler.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankExceptionHandler.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/persistence/entity/PaymentAttemptEntity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/persistence/entity/PaymentAttemptEntity.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/persistence/repository/PaymentAttemptRepository.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/persistence/repository/PaymentAttemptRepository.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/service/BankPaymentService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/service/BankPaymentService.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/api/ApiModels.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/api/ApiModels.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/api/OrderController.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/api/OrderController.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/client/BankClientModels.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/client/BankClientModels.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/client/BankGateway.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/client/BankGateway.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/persistence/entity/OrderEntity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/persistence/entity/OrderEntity.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/persistence/entity/OrderStatus.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/persistence/entity/OrderStatus.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/TicketProcessService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/TicketProcessService.kt" afterDir="false" />
-    </list>
+    <list default="true" id="41a9f74a-22f5-492b-b8e9-386b6e7fb110" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -116,7 +99,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1772196973391</updated>
-      <workItem from="1772196974514" duration="8657000" />
+      <workItem from="1772196974514" duration="9172000" />
     </task>
     <servers />
   </component>

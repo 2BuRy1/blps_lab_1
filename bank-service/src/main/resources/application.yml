@@ -7,10 +7,10 @@ spring:
   application:
     name: bank-service
   datasource:
-    url: jdbc:postgresql://${BANK_DB_HOST:localhost}:${BANK_DB_PORT:5432}/${BANK_DB_NAME:postgres}
+    url: jdbc:postgresql://${TICKET_DB_HOST:localhost}:${BANK_DB_PORT:5432}/${TICKET_DB_NAME:postgres}
     driver-class-name: org.postgresql.Driver
-    username: ${BANK_DB_USER:postgres}
-    password: ${BANK_DB_PASSWORD:}
+    username: ${TICKET_DB_USER:postgres}
+    password: ${TICKET_DB_PASSWORD:}
   jpa:
     hibernate:
       ddl-auto: update
