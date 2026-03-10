@@ -42,7 +42,7 @@ val generatedDir = layout.buildDirectory.dir("generated")
 
 openApiGenerate {
     generatorName.set("kotlin-spring")
-    inputSpec.set(file("../bank-openapi.yml").absolutePath)
+    inputSpec.set(file("../openapi/bank-openapi.yml").absolutePath)
     outputDir.set(generatedDir.get().asFile.absolutePath)
     apiPackage.set("com.example.bank.generated.api")
     modelPackage.set("com.example.bank.generated.model")

@@ -9,6 +9,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import jakarta.validation.constraints.Size
 
 @Entity
 @Table(name = "orders")
@@ -28,6 +29,7 @@ class OrderEntity(
     var passportId: String,
 
     @Column(name = "full_name", nullable = false)
+    @Size(max = 255)
     var fullName: String,
 
     @Column(name = "amount", nullable = false)

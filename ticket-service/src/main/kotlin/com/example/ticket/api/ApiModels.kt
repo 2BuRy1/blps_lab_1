@@ -2,6 +2,10 @@ package com.example.ticket.api
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Pattern
+import jakarta.validation.constraints.Size
 import java.time.LocalDate
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -22,14 +26,21 @@ data class RouteOption(
     val price: Int,
 )
 
+
 data class CreateOrderRequest(
     val routeId: String,
     val seat: String,
+    @field:Valid
     val passenger: Passenger,
 )
 
 data class Passenger(
+    @field: NotBlank
+    @field: Size(min = 10, max = 11)
+    @field: Pattern(regexp = "^\\d{4}\\s?\\d{6}$")
     val passportId: String,
+
+    @field: Size(max = 255)
     val fullName: String,
 )
 

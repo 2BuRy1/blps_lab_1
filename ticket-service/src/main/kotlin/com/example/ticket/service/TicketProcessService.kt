@@ -152,7 +152,7 @@ class TicketProcessService(
         )
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = [PaymentDeclinedException::class])
     fun payOrder(orderId: String, request: PayOrderRequest): Any {
         validatePayOrderRequest(request)
 
@@ -195,7 +195,7 @@ class TicketProcessService(
         }
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = [PaymentDeclinedException::class])
     fun confirm3ds(orderId: String, request: Confirm3dsRequest): PayOrderSuccessResponse {
         validateConfirm3dsRequest(request)
 
@@ -330,6 +330,7 @@ class TicketProcessService(
 
     private fun validateCreateOrderRequest(request: CreateOrderRequest) {
         val details = mutableListOf<ValidationDetail>()
+        val passportRegex = Regex("^\\d{4}\\s?\\d{6}$")
 
         if (request.routeId.isBlank()) {
             details += ValidationDetail("routeId", "must not be blank")
@@ -339,6 +340,11 @@ class TicketProcessService(
         }
         if (request.passenger.passportId.isBlank()) {
             details += ValidationDetail("passenger.passportId", "must not be blank")
+        } else if (!request.passenger.passportId.matches(passportRegex)) {
+            details += ValidationDetail(
+                "passenger.passportId",
+                "must match format 1234 567890 or 1234567890",
+            )
         }
         if (request.passenger.fullName.isBlank()) {
             details += ValidationDetail("passenger.fullName", "must not be blank")
