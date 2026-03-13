@@ -4,9 +4,11 @@
   <bpmn:error id="Error_SeatUnavailable" name="Ошибка: место уже занято" errorCode="SEAT_UNAVAILABLE" />
   <bpmn:error id="Error_PaymentDeclined" name="Ошибка: оплата отклонена" errorCode="PAYMENT_DECLINED" />
   <bpmn:collaboration id="Collaboration_RZD">
-    <bpmn:participant id="Participant_Client" name="Клиент" processRef="Process_Client" />
-    <bpmn:participant id="Participant_Server" name="Сервер РЖД" processRef="Process_Server" />
-    <bpmn:participant id="Participant_Bank" name="Банк" processRef="Process_Bank" />
+    <bpmn:participant id="Participant_Client" name="Клиент (ROLE=CLIENT)" processRef="Process_Client" />
+    <bpmn:participant id="Participant_Server" name="Сервер РЖД (ROLES=OPERATOR,ADMIN)" processRef="Process_Server" />
+    <bpmn:participant id="Participant_ServiceOperations" name="Служебные операции (ROLES=OPERATOR,ADMIN)" processRef="Process_ServiceOperations" />
+    <bpmn:participant id="Participant_Bank" name="Банк (ROLE=SERVICE_BANK)" processRef="Process_Bank" />
+    <bpmn:participant id="Participant_0zmpeqw" name="Служебные Операции (ADMIN)" processRef="Process_1ah8gm5" />
     <bpmn:messageFlow id="MF_Client_Search" sourceRef="Task_Client_SendSearchRequest" targetRef="Task_Server_ReceiveSearchRequest" />
     <bpmn:messageFlow id="MF_Bank_ServerSuccess" sourceRef="Task_Bank_SendSuccessStatus" targetRef="Task_Server_UpdatePaymentStatusDB" />
     <bpmn:messageFlow id="MF_Bank_ServerDecline" sourceRef="Task_Bank_SendDeclineStatus" targetRef="Task_Server_UpdatePaymentStatusDB" />
@@ -24,14 +26,47 @@
     <bpmn:messageFlow id="Flow_1i5n0kd" sourceRef="Activity_0zr7z9q" targetRef="Activity_0nq613n" />
     <bpmn:messageFlow id="Flow_167ul0q" sourceRef="Task_Server_SendPaymentToBank" targetRef="Task_Bank_Authorize" />
     <bpmn:messageFlow id="Flow_1j3pw83" sourceRef="Task_Bank_Send3DSRequired" targetRef="Task_Server_Receive3DSRequired" />
-    <bpmn:messageFlow id="Flow_0bav6lh" sourceRef="Activity_0mha9k2" targetRef="Activity_0kywx0m" />
-    <bpmn:messageFlow id="Flow_0ttpfzx" sourceRef="Activity_0veo3nb" targetRef="Activity_134vyw6" />
-    <bpmn:messageFlow id="Flow_1ujgxo8" sourceRef="Activity_1f3s80x" targetRef="Activity_134vyw6" />
-    <bpmn:messageFlow id="Flow_0ltafzw" sourceRef="Activity_1rtqbw6" targetRef="Activity_134vyw6" />
     <bpmn:messageFlow id="Flow_08qmhen" sourceRef="Activity_03arb5f" targetRef="Activity_1od1s60" />
     <bpmn:messageFlow id="Flow_054ao42" sourceRef="Activity_0rswzh1" targetRef="Activity_1od1s60" />
+    <bpmn:messageFlow id="Flow_1o3ajkk" sourceRef="Activity_0veo3nb" targetRef="Activity_134vyw6" />
+    <bpmn:messageFlow id="Flow_06bx4kw" sourceRef="Activity_1f3s80x" targetRef="Activity_134vyw6" />
+    <bpmn:messageFlow id="Flow_0e1snqs" sourceRef="Activity_1rtqbw6" targetRef="Activity_134vyw6" />
+    <bpmn:messageFlow id="Flow_0wp2jbl" sourceRef="Task_Server_ManageRoute" targetRef="Activity_134vyw6" />
+    <bpmn:messageFlow id="Flow_02oem81" sourceRef="Activity_0mha9k2" targetRef="Activity_1fonyhw" />
   </bpmn:collaboration>
   <bpmn:process id="Process_Client" name="Клиент: покупка в ЛК" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_Process_Client">
+      <bpmn:lane id="Lane_Client_RoleClient" name="ROLE: CLIENT">
+        <bpmn:flowNodeRef>Activity_0guicrx</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_1t60bjg</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_0hpifql</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_113p513</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_0hixtyb</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Start_Client</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_1od1s60</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_05s562c</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Client_EnterCard</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Client_SendSearchRequest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Client_ReceiveTicketTable</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Client_FilterTable</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Client_SelectSeat</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_0ug5vgb</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Client_OpenLK</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Client_EnterRoute</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Client_ReceiveTicket</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Client_Success</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_0nq613n</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_1tp4110</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Client_Confirm3DS</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Client_ConfirmOrder</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Client_RoleOperatorAdmin" name="ROLE: OPERATOR/ADMIN">
+        <bpmn:flowNodeRef>Activity_0mha9k2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_134vyw6</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_1b8m8lu</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_1ctjlgu</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
     <bpmn:userTask id="Activity_0guicrx" name="Ввести данные для логина&#10;(логин, пароль х 2)">
       <bpmn:incoming>Flow_1i76m3y</bpmn:incoming>
       <bpmn:outgoing>Flow_11tmrxh</bpmn:outgoing>
@@ -64,9 +99,6 @@
     <bpmn:startEvent id="Start_Client" name="Сайт открыт">
       <bpmn:outgoing>Flow_1bbd437</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:startEvent id="Event_1ctjlgu" name="Сайт открыт">
-      <bpmn:outgoing>Flow_01l4rji</bpmn:outgoing>
-    </bpmn:startEvent>
     <bpmn:sequenceFlow id="Flow_01l4rji" sourceRef="Event_1ctjlgu" targetRef="Activity_0mha9k2" />
     <bpmn:userTask id="Activity_0mha9k2" name="Отправить служебный запрос">
       <bpmn:incoming>Flow_01l4rji</bpmn:incoming>
@@ -78,9 +110,6 @@
       <bpmn:incoming>Flow_11tmrxh</bpmn:incoming>
       <bpmn:incoming>Flow_0lnrv4n</bpmn:incoming>
     </bpmn:task>
-    <bpmn:endEvent id="Event_1b8m8lu" name="Конец">
-      <bpmn:incoming>Flow_0cgii46</bpmn:incoming>
-    </bpmn:endEvent>
     <bpmn:task id="Activity_134vyw6" name="Служебный запрос выполнен">
       <bpmn:outgoing>Flow_0cgii46</bpmn:outgoing>
     </bpmn:task>
@@ -136,12 +165,58 @@
       <bpmn:incoming>Flow_16vkgsf</bpmn:incoming>
       <bpmn:incoming>Flow_1srb6m2</bpmn:incoming>
     </bpmn:userTask>
+    <bpmn:endEvent id="Event_1b8m8lu" name="Конец">
+      <bpmn:incoming>Flow_0cgii46</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:startEvent id="Event_1ctjlgu" name="Сайт открыт">
+      <bpmn:outgoing>Flow_01l4rji</bpmn:outgoing>
+    </bpmn:startEvent>
   </bpmn:process>
   <bpmn:process id="Process_Server" name="Сервер РЖД: обработка заказа" isExecutable="true">
-    <bpmn:sequenceFlow id="Flow_1h765ba" sourceRef="Activity_0kywx0m" targetRef="Gateway_0fn42ke" />
-    <bpmn:sequenceFlow id="Flow_1mo3vbd" sourceRef="Gateway_0fn42ke" targetRef="Activity_1rtqbw6" />
-    <bpmn:sequenceFlow id="Flow_1qbvd4l" sourceRef="Gateway_0fn42ke" targetRef="Activity_1f3s80x" />
-    <bpmn:sequenceFlow id="Flow_13ixxl0" sourceRef="Gateway_0fn42ke" targetRef="Activity_0veo3nb" />
+    <bpmn:laneSet id="LaneSet_Process_Server">
+      <bpmn:lane id="Lane_Server_RoleOperator" name="ROLE: OPERATOR/ADMIN">
+        <bpmn:flowNodeRef>Gateway_16hwi77</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_1fonyhw</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>CallActivity_Server_ServiceOperations</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_1hr4b4m</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Server_RoleClient" name="ROLE: CLIENT">
+        <bpmn:flowNodeRef>Activity_1xciu8s</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_0vf5ukr</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_03arb5f</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_12rft2v</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_0rswzh1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_1qgyhyd</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_01dly26</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Server_ReceiveSearchRequest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_1ctbj04</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_0j5nxzs</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Server_ValidateSearch</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_1dc7k9a</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_0tq7mhk</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_1ahn8jn</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Server_CheckSeatPrice</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_1bhyr5t</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Server_CreateBooking</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_0q552ql</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_1vt275i</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Transaction_Server_OrderPayment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_Transaction_OrderPaymentCancel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_Transaction_OrderPaymentStart</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_Transaction_OrderPaymentCommitted</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_Transaction_OrderPaymentCancelEnd</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Server_Send3DSChallengeToClient</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Server_Receive3DSRequired</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Server_SendPaymentToBank</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Server_Confirm3DSWithBank</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Server_IssueTicket</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Server_UpdatePaymentStatusDB</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_0ipe0f6</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_1pnuzh1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_1v8jiqb</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_0zr7z9q</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
     <bpmn:task id="Activity_1xciu8s" name="Принять запрос">
       <bpmn:outgoing>Flow_0irvgmf</bpmn:outgoing>
     </bpmn:task>
@@ -176,27 +251,6 @@
     <bpmn:sequenceFlow id="Flow_0fufp6d" name="Нет" sourceRef="Gateway_0vf5ukr" targetRef="Activity_03arb5f" />
     <bpmn:sequenceFlow id="Flow_1miqj3g" name="Да" sourceRef="Gateway_0vf5ukr" targetRef="Activity_12rft2v" />
     <bpmn:sequenceFlow id="Flow_022627a" sourceRef="Activity_12rft2v" targetRef="Activity_0rswzh1" />
-    <bpmn:serviceTask id="Activity_0kywx0m" name="Проверить ORDER_MANAGE">
-      <bpmn:outgoing>Flow_1h765ba</bpmn:outgoing>
-    </bpmn:serviceTask>
-    <bpmn:boundaryEvent id="Event_1x73ouq" attachedToRef="Activity_0kywx0m">
-      <bpmn:errorEventDefinition id="ErrorEventDefinition_0c52jz5" />
-    </bpmn:boundaryEvent>
-    <bpmn:exclusiveGateway id="Gateway_0fn42ke" name="Действие">
-      <bpmn:incoming>Flow_1h765ba</bpmn:incoming>
-      <bpmn:outgoing>Flow_1mo3vbd</bpmn:outgoing>
-      <bpmn:outgoing>Flow_1qbvd4l</bpmn:outgoing>
-      <bpmn:outgoing>Flow_13ixxl0</bpmn:outgoing>
-    </bpmn:exclusiveGateway>
-    <bpmn:serviceTask id="Activity_0veo3nb" name="Отменить заказ">
-      <bpmn:incoming>Flow_13ixxl0</bpmn:incoming>
-    </bpmn:serviceTask>
-    <bpmn:serviceTask id="Activity_1f3s80x" name="Посмотреть информацию заказа">
-      <bpmn:incoming>Flow_1qbvd4l</bpmn:incoming>
-    </bpmn:serviceTask>
-    <bpmn:serviceTask id="Activity_1rtqbw6" name="Повторить платеж">
-      <bpmn:incoming>Flow_1mo3vbd</bpmn:incoming>
-    </bpmn:serviceTask>
     <bpmn:serviceTask id="Task_Server_CheckSeatPrice" name="Проверить место, данные пользователя и актуальную цену">
       <bpmn:incoming>Flow_11uaghc</bpmn:incoming>
       <bpmn:outgoing>Flow_04g4ghv</bpmn:outgoing>
@@ -224,14 +278,14 @@
     <bpmn:boundaryEvent id="Event_1bhyr5t" attachedToRef="Task_Server_CheckSeatPrice">
       <bpmn:errorEventDefinition id="ErrorEventDefinition_0b5mxcd" />
     </bpmn:boundaryEvent>
-    <bpmn:serviceTask id="Activity_1ctbj04" name="Проверить ROUTE_VEIW, ROUTE_MANAGE">
+    <bpmn:serviceTask id="Activity_1ctbj04" name="Проверить ROUTE_VIEW (CLIENT/OPERATOR/ADMIN)">
       <bpmn:incoming>Flow_1st76cu</bpmn:incoming>
       <bpmn:outgoing>Flow_0gmn8s6</bpmn:outgoing>
     </bpmn:serviceTask>
     <bpmn:boundaryEvent id="Event_0j5nxzs" attachedToRef="Activity_1ctbj04">
       <bpmn:errorEventDefinition id="ErrorEventDefinition_09c3zmy" />
     </bpmn:boundaryEvent>
-    <bpmn:serviceTask id="Activity_0tq7mhk" name="Проверить ORDER_CREATE">
+    <bpmn:serviceTask id="Activity_0tq7mhk" name="Проверить ORDER_CREATE (CLIENT/ADMIN)">
       <bpmn:outgoing>Flow_11uaghc</bpmn:outgoing>
     </bpmn:serviceTask>
     <bpmn:boundaryEvent id="Event_1ahn8jn" attachedToRef="Activity_0tq7mhk">
@@ -242,57 +296,147 @@
     <bpmn:sequenceFlow id="Flow_1st76cu" sourceRef="Task_Server_ReceiveSearchRequest" targetRef="Activity_1ctbj04" />
     <bpmn:sequenceFlow id="Flow_0gmn8s6" sourceRef="Activity_1ctbj04" targetRef="Task_Server_ValidateSearch" />
     <bpmn:dataStoreReference id="DataStoreRef_Main" name="Единая БД РЖД" dataStoreRef="DataStore_Main" />
-    <bpmn:task id="Task_Server_Send3DSChallengeToClient" name="Отправить клиенту запрос на 3DS">
-      <bpmn:incoming>Flow_0c4votm</bpmn:incoming>
-    </bpmn:task>
-    <bpmn:task id="Task_Server_Receive3DSRequired" name="Принять статус REQUIRES_3DS">
-      <bpmn:outgoing>Flow_0c4votm</bpmn:outgoing>
-    </bpmn:task>
-    <bpmn:task id="Task_Server_SendPaymentToBank" name="Отправить запрос на оплату в банк">
-      <bpmn:incoming>Flow_0t78e7w</bpmn:incoming>
-    </bpmn:task>
-    <bpmn:serviceTask id="Activity_0q552ql" name="Проверить ORDER_PAY">
+    <bpmn:serviceTask id="Activity_0q552ql" name="Проверить ORDER_PAY (CLIENT/SERVICE_BANK/ADMIN)">
       <bpmn:outgoing>Flow_0t78e7w</bpmn:outgoing>
     </bpmn:serviceTask>
     <bpmn:boundaryEvent id="Event_1vt275i" attachedToRef="Activity_0q552ql">
       <bpmn:errorEventDefinition id="ErrorEventDefinition_1auoqis" />
     </bpmn:boundaryEvent>
-    <bpmn:sequenceFlow id="Flow_1n58psq" sourceRef="Gateway_0ipe0f6" targetRef="Task_Server_IssueTicket" />
-    <bpmn:sequenceFlow id="Flow_1airhpw" sourceRef="Task_Server_IssueTicket" targetRef="Activity_1pnuzh1" />
-    <bpmn:sequenceFlow id="Flow_1vkzlvl" sourceRef="Task_Server_UpdatePaymentStatusDB" targetRef="Gateway_0ipe0f6" />
-    <bpmn:sequenceFlow id="Flow_1s90nkc" sourceRef="Gateway_0ipe0f6" targetRef="Activity_0zr7z9q" />
-    <bpmn:sequenceFlow id="Flow_0c4votm" sourceRef="Task_Server_Receive3DSRequired" targetRef="Task_Server_Send3DSChallengeToClient" />
-    <bpmn:sequenceFlow id="Flow_0t78e7w" sourceRef="Activity_0q552ql" targetRef="Task_Server_SendPaymentToBank" />
-    <bpmn:task id="Task_Server_Confirm3DSWithBank" name="Передать подтверждение 3DS в банк" />
-    <bpmn:serviceTask id="Activity_1pnuzh1" name="Проверить TICKET_VIEW">
+    <bpmn:sequenceFlow id="Flow_0t78e7w" sourceRef="Activity_0q552ql" targetRef="Transaction_Server_OrderPayment" />
+    <bpmn:sequenceFlow id="Flow_1airhpw" sourceRef="Transaction_Server_OrderPayment" targetRef="Activity_1pnuzh1" />
+    <bpmn:sequenceFlow id="Flow_1s90nkc" sourceRef="Event_Transaction_OrderPaymentCancel" targetRef="Activity_0zr7z9q" />
+    <bpmn:transaction id="Transaction_Server_OrderPayment" name="Транзакция оплаты и выпуска билета">
+      <bpmn:incoming>Flow_0t78e7w</bpmn:incoming>
+      <bpmn:outgoing>Flow_1airhpw</bpmn:outgoing>
+      <bpmn:startEvent id="Event_Transaction_OrderPaymentStart">
+        <bpmn:outgoing>Flow_Transaction_StartPayment</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:endEvent id="Event_Transaction_OrderPaymentCommitted">
+        <bpmn:incoming>Flow_Transaction_Commit</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:endEvent id="Event_Transaction_OrderPaymentCancelEnd">
+        <bpmn:incoming>Flow_Transaction_Cancel</bpmn:incoming>
+        <bpmn:cancelEventDefinition id="CancelEventDefinition_Transaction_OrderPayment" />
+      </bpmn:endEvent>
+      <bpmn:task id="Task_Server_Send3DSChallengeToClient" name="Отправить клиенту запрос на 3DS">
+        <bpmn:incoming>Flow_0c4votm</bpmn:incoming>
+      </bpmn:task>
+      <bpmn:task id="Task_Server_Receive3DSRequired" name="Принять статус REQUIRES_3DS">
+        <bpmn:outgoing>Flow_0c4votm</bpmn:outgoing>
+      </bpmn:task>
+      <bpmn:task id="Task_Server_SendPaymentToBank" name="Отправить запрос на оплату в банк">
+        <bpmn:incoming>Flow_Transaction_StartPayment</bpmn:incoming>
+      </bpmn:task>
+      <bpmn:task id="Task_Server_Confirm3DSWithBank" name="Передать подтверждение 3DS в банк" />
+      <bpmn:serviceTask id="Task_Server_IssueTicket" name="Сформировать электронный билет">
+        <bpmn:incoming>Flow_1n58psq</bpmn:incoming>
+        <bpmn:outgoing>Flow_Transaction_Commit</bpmn:outgoing>
+        <bpmn:dataOutputAssociation id="DataOutputAssociation_088quaf">
+          <bpmn:targetRef>DataStoreRef_Main</bpmn:targetRef>
+        </bpmn:dataOutputAssociation>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="Task_Server_UpdatePaymentStatusDB" name="Обновить статус оплаты в БД">
+        <bpmn:outgoing>Flow_1vkzlvl</bpmn:outgoing>
+        <bpmn:dataOutputAssociation id="DataOutputAssociation_1nniwny">
+          <bpmn:targetRef>DataStoreRef_Main</bpmn:targetRef>
+        </bpmn:dataOutputAssociation>
+      </bpmn:serviceTask>
+      <bpmn:exclusiveGateway id="Gateway_0ipe0f6" name="Платеж успешный?" default="Flow_Transaction_Cancel">
+        <bpmn:incoming>Flow_1vkzlvl</bpmn:incoming>
+        <bpmn:outgoing>Flow_1n58psq</bpmn:outgoing>
+        <bpmn:outgoing>Flow_Transaction_Cancel</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:sequenceFlow id="Flow_Transaction_StartPayment" sourceRef="Event_Transaction_OrderPaymentStart" targetRef="Task_Server_SendPaymentToBank" />
+      <bpmn:sequenceFlow id="Flow_1n58psq" sourceRef="Gateway_0ipe0f6" targetRef="Task_Server_IssueTicket" />
+      <bpmn:sequenceFlow id="Flow_1vkzlvl" sourceRef="Task_Server_UpdatePaymentStatusDB" targetRef="Gateway_0ipe0f6" />
+      <bpmn:sequenceFlow id="Flow_0c4votm" sourceRef="Task_Server_Receive3DSRequired" targetRef="Task_Server_Send3DSChallengeToClient" />
+      <bpmn:sequenceFlow id="Flow_Transaction_Commit" sourceRef="Task_Server_IssueTicket" targetRef="Event_Transaction_OrderPaymentCommitted" />
+      <bpmn:sequenceFlow id="Flow_Transaction_Cancel" sourceRef="Gateway_0ipe0f6" targetRef="Event_Transaction_OrderPaymentCancelEnd" />
+    </bpmn:transaction>
+    <bpmn:boundaryEvent id="Event_Transaction_OrderPaymentCancel" attachedToRef="Transaction_Server_OrderPayment">
+      <bpmn:outgoing>Flow_1s90nkc</bpmn:outgoing>
+      <bpmn:cancelEventDefinition id="CancelEventDefinition_Transaction_OrderPaymentBoundary" />
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="Activity_1pnuzh1" name="Проверить TICKET_VIEW (CLIENT/OPERATOR/ADMIN)">
       <bpmn:incoming>Flow_1airhpw</bpmn:incoming>
     </bpmn:serviceTask>
     <bpmn:boundaryEvent id="Event_1v8jiqb" attachedToRef="Activity_1pnuzh1">
       <bpmn:errorEventDefinition id="ErrorEventDefinition_06bnn93" />
     </bpmn:boundaryEvent>
-    <bpmn:serviceTask id="Activity_0zr7z9q" name="Отклонить платеж пользователя">
+    <bpmn:serviceTask id="Activity_0zr7z9q" name="Компенсация: отклонить платеж и освободить место">
       <bpmn:incoming>Flow_1s90nkc</bpmn:incoming>
     </bpmn:serviceTask>
-    <bpmn:serviceTask id="Task_Server_IssueTicket" name="Сформировать электронный билет">
-      <bpmn:incoming>Flow_1n58psq</bpmn:incoming>
-      <bpmn:outgoing>Flow_1airhpw</bpmn:outgoing>
-      <bpmn:dataOutputAssociation id="DataOutputAssociation_088quaf">
-        <bpmn:targetRef>DataStoreRef_Main</bpmn:targetRef>
-      </bpmn:dataOutputAssociation>
-    </bpmn:serviceTask>
-    <bpmn:serviceTask id="Task_Server_UpdatePaymentStatusDB" name="Обновить статус оплаты в БД">
-      <bpmn:outgoing>Flow_1vkzlvl</bpmn:outgoing>
-      <bpmn:dataOutputAssociation id="DataOutputAssociation_1nniwny">
-        <bpmn:targetRef>DataStoreRef_Main</bpmn:targetRef>
-      </bpmn:dataOutputAssociation>
-    </bpmn:serviceTask>
-    <bpmn:exclusiveGateway id="Gateway_0ipe0f6" name="Платеж успешный?" default="Flow_1s90nkc">
-      <bpmn:incoming>Flow_1vkzlvl</bpmn:incoming>
-      <bpmn:outgoing>Flow_1n58psq</bpmn:outgoing>
-      <bpmn:outgoing>Flow_1s90nkc</bpmn:outgoing>
+    <bpmn:exclusiveGateway id="Gateway_16hwi77">
+      <bpmn:incoming>Flow_0j99lvr</bpmn:incoming>
+      <bpmn:outgoing>Flow_1d0k15w</bpmn:outgoing>
+      <bpmn:outgoing>Flow_0o8cmkp</bpmn:outgoing>
     </bpmn:exclusiveGateway>
+    <bpmn:task id="Activity_1fonyhw" name="Проверить ADMIN или OPERATOR">
+      <bpmn:outgoing>Flow_0j99lvr</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_0j99lvr" sourceRef="Activity_1fonyhw" targetRef="Gateway_16hwi77" />
+    <bpmn:callActivity id="CallActivity_Server_ServiceOperations" name="Служебная операция OPERATOR" calledElement="Process_ServiceOperations">
+      <bpmn:incoming>Flow_1d0k15w</bpmn:incoming>
+    </bpmn:callActivity>
+    <bpmn:sequenceFlow id="Flow_1d0k15w" sourceRef="Gateway_16hwi77" targetRef="CallActivity_Server_ServiceOperations" />
+    <bpmn:callActivity id="Activity_1hr4b4m" name="Служебная операция ADMIN" calledElement="Process_ServiceAdministration">
+      <bpmn:incoming>Flow_0o8cmkp</bpmn:incoming>
+    </bpmn:callActivity>
+    <bpmn:sequenceFlow id="Flow_0o8cmkp" sourceRef="Gateway_16hwi77" targetRef="Activity_1hr4b4m" />
+  </bpmn:process>
+  <bpmn:process id="Process_ServiceOperations" name="ServiceOperations: служебные операции" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_SubProcess_ServiceOperations">
+      <bpmn:lane id="Lane_SubProcess_Operator" name="ROLE: OPERATOR">
+        <bpmn:flowNodeRef>Activity_1rtqbw6</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_0kywx0m</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_1x73ouq</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_0veo3nb</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_0fn42ke</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_1f3s80x</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_SubProcess_Admin" name="ROLE: ADMIN" />
+    </bpmn:laneSet>
+    <bpmn:sequenceFlow id="Flow_1h765ba" sourceRef="Activity_0kywx0m" targetRef="Gateway_0fn42ke" />
+    <bpmn:sequenceFlow id="Flow_1qbvd4l" sourceRef="Gateway_0fn42ke" targetRef="Activity_1f3s80x" />
+    <bpmn:serviceTask id="Activity_1rtqbw6" name="Повторить платеж (ORDER_MANAGE)">
+      <bpmn:incoming>Flow_1bgecfx</bpmn:incoming>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Activity_0kywx0m" name="Проверить ORDER_MANAGE (OPERATOR)">
+      <bpmn:outgoing>Flow_1h765ba</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="Event_1x73ouq" attachedToRef="Activity_0kywx0m">
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_0c52jz5" />
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="Activity_0veo3nb" name="Отменить заказ (ORDER_MANAGE)">
+      <bpmn:incoming>Flow_1t35fk0</bpmn:incoming>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_0fn42ke" name="Служебное действие">
+      <bpmn:incoming>Flow_1h765ba</bpmn:incoming>
+      <bpmn:outgoing>Flow_1qbvd4l</bpmn:outgoing>
+      <bpmn:outgoing>Flow_1bgecfx</bpmn:outgoing>
+      <bpmn:outgoing>Flow_1t35fk0</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Activity_1f3s80x" name="Посмотреть информацию заказа (ORDER_MANAGE)">
+      <bpmn:incoming>Flow_1qbvd4l</bpmn:incoming>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_1bgecfx" sourceRef="Gateway_0fn42ke" targetRef="Activity_1rtqbw6" />
+    <bpmn:sequenceFlow id="Flow_1t35fk0" sourceRef="Gateway_0fn42ke" targetRef="Activity_0veo3nb" />
   </bpmn:process>
   <bpmn:process id="Process_Bank" name="Банк: обработка платежа" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_Process_Bank">
+      <bpmn:lane id="Lane_Bank_RoleServiceBank" name="ROLE: SERVICE_BANK">
+        <bpmn:flowNodeRef>Task_Bank_Send3DSRequired</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Bank_CaptureFunds</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Bank_SendSuccessStatus</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_1agj4l7</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Bank_Authorize</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Bank_3DSRequired</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Bank_Approved</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Bank_SendDeclineStatus</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_0be6dun</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_19l1kf0</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
     <bpmn:task id="Task_Bank_Send3DSRequired" name="Отправить статус REQUIRES_3DS">
       <bpmn:incoming>Flow_B_3DS_Yes</bpmn:incoming>
     </bpmn:task>
@@ -308,7 +452,7 @@
       <bpmn:outgoing>Flow_1p58pnh</bpmn:outgoing>
       <bpmn:outgoing>Flow_15ebro6</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:serviceTask id="Task_Bank_Authorize" name="Проверить карту и 3DS и ORDER_PAY">
+    <bpmn:serviceTask id="Task_Bank_Authorize" name="Проверить карту и 3DS (ORDER_PAY, ROLE=SERVICE_BANK)">
       <bpmn:outgoing>Flow_B_3</bpmn:outgoing>
     </bpmn:serviceTask>
     <bpmn:exclusiveGateway id="Gateway_Bank_3DSRequired" name="Требуется 3DS?" default="Flow_B_3DS_No">
@@ -346,10 +490,30 @@
     <bpmn:sequenceFlow id="Flow_053vawo" sourceRef="Activity_0be6dun" targetRef="Gateway_Bank_Approved" />
     <bpmn:sequenceFlow id="Flow_0rwb1t9" sourceRef="Gateway_Bank_Approved" targetRef="Task_Bank_SendDeclineStatus" />
   </bpmn:process>
+  <bpmn:process id="Process_1ah8gm5" isExecutable="false">
+    <bpmn:serviceTask id="Activity_1vxh5lh" name="Проверить ROUTE_MANAGE (ADMIN)">
+      <bpmn:outgoing>Flow_1ox9rm8</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="Event_0pumtp8" attachedToRef="Activity_1vxh5lh">
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_0tqkjwp" />
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="Task_Server_ManageRoute" name="Изменить маршрут/цену/места (ROUTE_MANAGE, ADMIN)">
+      <bpmn:incoming>Flow_1ox9rm8</bpmn:incoming>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_1ox9rm8" sourceRef="Activity_1vxh5lh" targetRef="Task_Server_ManageRoute" />
+  </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_RZD">
     <bpmndi:BPMNPlane id="BPMNPlane_RZD" bpmnElement="Collaboration_RZD">
       <bpmndi:BPMNShape id="Participant_Client_di" bpmnElement="Participant_Client" isHorizontal="true">
         <dc:Bounds x="120" y="80" width="7600" height="422" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Client_RoleOperatorAdmin_di" bpmnElement="Lane_Client_RoleOperatorAdmin" isHorizontal="true">
+        <dc:Bounds x="150" y="380" width="7570" height="122" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Client_RoleClient_di" bpmnElement="Lane_Client_RoleClient" isHorizontal="true">
+        <dc:Bounds x="150" y="80" width="7570" height="300" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_033msiy_di" bpmnElement="Activity_0guicrx">
@@ -379,14 +543,8 @@
           <dc:Bounds x="168" y="218" width="64" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_1ctjlgu_di" bpmnElement="Event_1ctjlgu">
-        <dc:Bounds x="182" y="352" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="168" y="395" width="64" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_1u56x5q_di" bpmnElement="Activity_0mha9k2">
-        <dc:Bounds x="300" y="330" width="100" height="80" />
+        <dc:Bounds x="300" y="400" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_1od1s60_di" bpmnElement="Activity_1od1s60">
@@ -397,14 +555,8 @@
         <dc:Bounds x="1120" y="200" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_1b8m8lu_di" bpmnElement="Event_1b8m8lu">
-        <dc:Bounds x="992" y="352" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="994" y="397" width="32" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_134vyw6_di" bpmnElement="Activity_134vyw6">
-        <dc:Bounds x="810" y="330" width="100" height="80" />
+        <dc:Bounds x="810" y="400" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_0h42fdp_di" bpmnElement="Task_Client_EnterCard">
@@ -456,6 +608,18 @@
       <bpmndi:BPMNShape id="Activity_0m54f0g_di" bpmnElement="Task_Client_ConfirmOrder">
         <dc:Bounds x="3760" y="291" width="100" height="80" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1b8m8lu_di" bpmnElement="Event_1b8m8lu">
+        <dc:Bounds x="992" y="414" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="994" y="457" width="32" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1ctjlgu_di" bpmnElement="Event_1ctjlgu">
+        <dc:Bounds x="202" y="414" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="188" y="457" width="64" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_061vcsb_di" bpmnElement="Flow_061vcsb">
         <di:waypoint x="1930" y="330" />
         <di:waypoint x="2075" y="330" />
@@ -502,12 +666,12 @@
         <di:waypoint x="1120" y="240" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_01l4rji_di" bpmnElement="Flow_01l4rji">
-        <di:waypoint x="218" y="370" />
-        <di:waypoint x="300" y="370" />
+        <di:waypoint x="238" y="434" />
+        <di:waypoint x="300" y="434" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_0cgii46_di" bpmnElement="Flow_0cgii46">
-        <di:waypoint x="910" y="370" />
-        <di:waypoint x="992" y="370" />
+        <di:waypoint x="910" y="434" />
+        <di:waypoint x="992" y="434" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_16vkgsf_di" bpmnElement="Flow_16vkgsf">
         <di:waypoint x="3660" y="331" />
@@ -545,6 +709,14 @@
         <dc:Bounds x="120" y="502" width="7600" height="468" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Server_RoleClient_di" bpmnElement="Lane_Server_RoleClient" isHorizontal="false">
+        <dc:Bounds x="1100" y="502" width="6620" height="468" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Server_RoleOperator_di" bpmnElement="Lane_Server_RoleOperator" isHorizontal="false">
+        <dc:Bounds x="150" y="502" width="950" height="468" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_1xciu8s_di" bpmnElement="Activity_1xciu8s">
         <dc:Bounds x="1120" y="607" width="100" height="80" />
         <bpmndi:BPMNLabel />
@@ -565,28 +737,6 @@
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_0rswzh1_di" bpmnElement="Activity_0rswzh1">
         <dc:Bounds x="1640" y="672" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_0hd8yfd" bpmnElement="Activity_0kywx0m">
-        <dc:Bounds x="300" y="680" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Gateway_0fn42ke_di" bpmnElement="Gateway_0fn42ke" isMarkerVisible="true">
-        <dc:Bounds x="485" y="695" width="50" height="50" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="485.5" y="671" width="49" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_1i0rkhv_di" bpmnElement="Activity_0veo3nb">
-        <dc:Bounds x="610" y="560" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_0aqjrqm" bpmnElement="Activity_1f3s80x">
-        <dc:Bounds x="610" y="680" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_1b5u21x" bpmnElement="Activity_1rtqbw6">
-        <dc:Bounds x="610" y="800" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_Server_CheckSeatPrice_di" bpmnElement="Task_Server_CheckSeatPrice">
@@ -622,6 +772,37 @@
           <dc:Bounds x="4823" y="707" width="84" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0tblvsn" bpmnElement="Activity_0q552ql">
+        <dc:Bounds x="4380" y="750" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_16hwi77_di" bpmnElement="Gateway_16hwi77" isMarkerVisible="true">
+        <dc:Bounds x="425" y="705" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1fonyhw_di" bpmnElement="Activity_1fonyhw">
+        <dc:Bounds x="220" y="690" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CallActivity_Server_ServiceOperations_di" bpmnElement="CallActivity_Server_ServiceOperations">
+        <dc:Bounds x="515" y="600" width="230" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_12ayztm" bpmnElement="Activity_1hr4b4m">
+        <dc:Bounds x="515" y="770" width="230" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Transaction_Server_OrderPayment_di" bpmnElement="Transaction_Server_OrderPayment" isExpanded="true">
+        <dc:Bounds x="4520" y="520" width="1730" height="340" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Transaction_OrderPaymentStart_di" bpmnElement="Event_Transaction_OrderPaymentStart">
+        <dc:Bounds x="4532" y="772" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Transaction_OrderPaymentCommitted_di" bpmnElement="Event_Transaction_OrderPaymentCommitted">
+        <dc:Bounds x="6192" y="534" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Transaction_OrderPaymentCancelEnd_di" bpmnElement="Event_Transaction_OrderPaymentCancelEnd">
+        <dc:Bounds x="5950" y="612" width="36" height="36" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_Server_Send3DSChallengeToClient_di" bpmnElement="Task_Server_Send3DSChallengeToClient">
         <dc:Bounds x="5245" y="750" width="190" height="80" />
       </bpmndi:BPMNShape>
@@ -631,20 +812,8 @@
       <bpmndi:BPMNShape id="Activity_1t77upy_di" bpmnElement="Task_Server_SendPaymentToBank">
         <dc:Bounds x="4580" y="750" width="100" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_0tblvsn" bpmnElement="Activity_0q552ql">
-        <dc:Bounds x="4380" y="750" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_Server_Confirm3DSWithBank_di" bpmnElement="Task_Server_Confirm3DSWithBank">
         <dc:Bounds x="5385" y="552" width="190" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_1el8doj" bpmnElement="Activity_1pnuzh1">
-        <dc:Bounds x="6280" y="512" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_0eyx9yp_di" bpmnElement="Activity_0zr7z9q">
-        <dc:Bounds x="6160" y="607" width="100" height="80" />
-        <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_Server_IssueTicket_di" bpmnElement="Task_Server_IssueTicket">
         <dc:Bounds x="5965" y="512" width="170" height="80" />
@@ -658,8 +827,46 @@
           <dc:Bounds x="5850" y="493" width="59" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Transaction_StartPayment_di" bpmnElement="Flow_Transaction_StartPayment">
+        <di:waypoint x="4568" y="790" />
+        <di:waypoint x="4580" y="790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1n58psq_di" bpmnElement="Flow_1n58psq">
+        <di:waypoint x="5905" y="552" />
+        <di:waypoint x="5965" y="552" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1vkzlvl_di" bpmnElement="Flow_1vkzlvl">
+        <di:waypoint x="5805" y="592" />
+        <di:waypoint x="5830" y="592" />
+        <di:waypoint x="5830" y="552" />
+        <di:waypoint x="5855" y="552" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0c4votm_di" bpmnElement="Flow_0c4votm">
+        <di:waypoint x="5125" y="790" />
+        <di:waypoint x="5245" y="790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Transaction_Commit_di" bpmnElement="Flow_Transaction_Commit">
+        <di:waypoint x="6135" y="552" />
+        <di:waypoint x="6192" y="552" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Transaction_Cancel_di" bpmnElement="Flow_Transaction_Cancel">
+        <di:waypoint x="5880" y="577" />
+        <di:waypoint x="5880" y="630" />
+        <di:waypoint x="5950" y="630" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="BPMNShape_1el8doj" bpmnElement="Activity_1pnuzh1">
+        <dc:Bounds x="6280" y="512" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0eyx9yp_di" bpmnElement="Activity_0zr7z9q">
+        <dc:Bounds x="6160" y="607" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_1val7oj" bpmnElement="Event_1v8jiqb">
         <dc:Bounds x="6332" y="574" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Transaction_OrderPaymentCancel_di" bpmnElement="Event_Transaction_OrderPaymentCancel">
+        <dc:Bounds x="6142" y="842" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_0kd50mn" bpmnElement="Event_1vt275i">
         <dc:Bounds x="4432" y="812" width="36" height="36" />
@@ -673,35 +880,12 @@
       <bpmndi:BPMNShape id="Event_1bhyr5t_di" bpmnElement="Event_1bhyr5t">
         <dc:Bounds x="4037" y="634" width="36" height="36" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="BPMNShape_1nhwph2" bpmnElement="Event_1x73ouq">
-        <dc:Bounds x="352" y="742" width="36" height="36" />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_01dly26_di" bpmnElement="Event_01dly26">
         <dc:Bounds x="1492" y="594" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="BPMNShape_1my9t1n" bpmnElement="Event_1qgyhyd">
         <dc:Bounds x="1492" y="734" width="36" height="36" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_1h765ba_di" bpmnElement="Flow_1h765ba">
-        <di:waypoint x="400" y="720" />
-        <di:waypoint x="485" y="720" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1mo3vbd_di" bpmnElement="Flow_1mo3vbd">
-        <di:waypoint x="535" y="720" />
-        <di:waypoint x="573" y="720" />
-        <di:waypoint x="573" y="840" />
-        <di:waypoint x="610" y="840" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1qbvd4l_di" bpmnElement="Flow_1qbvd4l">
-        <di:waypoint x="535" y="720" />
-        <di:waypoint x="610" y="720" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_13ixxl0_di" bpmnElement="Flow_13ixxl0">
-        <di:waypoint x="535" y="720" />
-        <di:waypoint x="573" y="720" />
-        <di:waypoint x="573" y="600" />
-        <di:waypoint x="610" y="600" />
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_0irvgmf_di" bpmnElement="Flow_0irvgmf">
         <di:waypoint x="1220" y="647" />
         <di:waypoint x="1295" y="647" />
@@ -742,35 +926,88 @@
         <di:waypoint x="2560" y="612" />
         <di:waypoint x="2745" y="612" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1n58psq_di" bpmnElement="Flow_1n58psq">
-        <di:waypoint x="5905" y="552" />
-        <di:waypoint x="5965" y="552" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1airhpw_di" bpmnElement="Flow_1airhpw">
-        <di:waypoint x="6135" y="552" />
-        <di:waypoint x="6280" y="552" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1vkzlvl_di" bpmnElement="Flow_1vkzlvl">
-        <di:waypoint x="5805" y="592" />
-        <di:waypoint x="5830" y="592" />
-        <di:waypoint x="5830" y="552" />
-        <di:waypoint x="5855" y="552" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1s90nkc_di" bpmnElement="Flow_1s90nkc">
-        <di:waypoint x="5880" y="577" />
-        <di:waypoint x="5880" y="647" />
-        <di:waypoint x="6160" y="647" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0c4votm_di" bpmnElement="Flow_0c4votm">
-        <di:waypoint x="5125" y="790" />
-        <di:waypoint x="5245" y="790" />
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_0t78e7w_di" bpmnElement="Flow_0t78e7w">
         <di:waypoint x="4480" y="790" />
-        <di:waypoint x="4580" y="790" />
+        <di:waypoint x="4520" y="790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1airhpw_di" bpmnElement="Flow_1airhpw">
+        <di:waypoint x="6250" y="552" />
+        <di:waypoint x="6280" y="552" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1s90nkc_di" bpmnElement="Flow_1s90nkc">
+        <di:waypoint x="6160" y="860" />
+        <di:waypoint x="6160" y="647" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0j99lvr_di" bpmnElement="Flow_0j99lvr">
+        <di:waypoint x="320" y="730" />
+        <di:waypoint x="425" y="730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1d0k15w_di" bpmnElement="Flow_1d0k15w">
+        <di:waypoint x="450" y="705" />
+        <di:waypoint x="450" y="630" />
+        <di:waypoint x="515" y="630" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0o8cmkp_di" bpmnElement="Flow_0o8cmkp">
+        <di:waypoint x="450" y="755" />
+        <di:waypoint x="450" y="810" />
+        <di:waypoint x="515" y="810" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_ServiceOperations_di" bpmnElement="Participant_ServiceOperations" isHorizontal="true">
+        <dc:Bounds x="120" y="1270" width="7600" height="480" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_SubProcess_Admin_di" bpmnElement="Lane_SubProcess_Admin" isHorizontal="false">
+        <dc:Bounds x="1140" y="1270" width="6580" height="480" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_SubProcess_Operator_di" bpmnElement="Lane_SubProcess_Operator" isHorizontal="false">
+        <dc:Bounds x="150" y="1270" width="990" height="480" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1rtqbw6_di" bpmnElement="Activity_1rtqbw6">
+        <dc:Bounds x="780" y="1320" width="190" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0kywx0m_di" bpmnElement="Activity_0kywx0m">
+        <dc:Bounds x="199" y="1440" width="230" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0veo3nb_di" bpmnElement="Activity_0veo3nb">
+        <dc:Bounds x="845" y="1603" width="190" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0fn42ke_di" bpmnElement="Gateway_0fn42ke" isMarkerVisible="true">
+        <dc:Bounds x="485" y="1455" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="481" y="1515" width="58" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1f3s80x_di" bpmnElement="Activity_1f3s80x">
+        <dc:Bounds x="845" y="1440" width="190" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1x73ouq_di" bpmnElement="Event_1x73ouq">
+        <dc:Bounds x="396" y="1502" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1h765ba_di" bpmnElement="Flow_1h765ba">
+        <di:waypoint x="429" y="1480" />
+        <di:waypoint x="485" y="1480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1qbvd4l_di" bpmnElement="Flow_1qbvd4l">
+        <di:waypoint x="535" y="1480" />
+        <di:waypoint x="845" y="1480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1bgecfx_di" bpmnElement="Flow_1bgecfx">
+        <di:waypoint x="510" y="1455" />
+        <di:waypoint x="510" y="1360" />
+        <di:waypoint x="780" y="1360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1t35fk0_di" bpmnElement="Flow_1t35fk0">
+        <di:waypoint x="510" y="1505" />
+        <di:waypoint x="510" y="1643" />
+        <di:waypoint x="845" y="1643" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Participant_Bank_di" bpmnElement="Participant_Bank" isHorizontal="true">
         <dc:Bounds x="120" y="970" width="7600" height="332" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Bank_RoleServiceBank_di" bpmnElement="Lane_Bank_RoleServiceBank" isHorizontal="true">
+        <dc:Bounds x="150" y="970" width="7570" height="332" />
+        <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_Bank_Send3DSRequired_di" bpmnElement="Task_Bank_Send3DSRequired">
         <dc:Bounds x="5155" y="990" width="170" height="80" />
@@ -855,6 +1092,32 @@
         <di:waypoint x="5610" y="1062" />
         <di:waypoint x="5610" y="1050" />
         <di:waypoint x="5820" y="1050" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_0zmpeqw_di" bpmnElement="Participant_0zmpeqw" isHorizontal="true">
+        <dc:Bounds x="120" y="1750" width="1020" height="250" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0vqnqxw" bpmnElement="Activity_1vxh5lh">
+        <dc:Bounds x="195" y="1830" width="230" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Server_ManageRoute_di" bpmnElement="Task_Server_ManageRoute">
+        <dc:Bounds x="625" y="1830" width="230" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0q9oh3s" bpmnElement="Event_0pumtp8">
+        <dc:Bounds x="392" y="1892" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1ox9rm8_di" bpmnElement="Flow_1ox9rm8">
+        <di:waypoint x="425" y="1870" />
+        <di:waypoint x="625" y="1870" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataOutputAssociation_19lk568_di" bpmnElement="DataOutputAssociation_19lk568">
+        <di:waypoint x="1540" y="574" />
+        <di:waypoint x="4840" y="679" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataOutputAssociation_1130lfd_di" bpmnElement="DataOutputAssociation_1130lfd">
+        <di:waypoint x="1740" y="712" />
+        <di:waypoint x="4840" y="687" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DataOutputAssociation_0vz39m7_di" bpmnElement="DataOutputAssociation_0vz39m7">
         <di:waypoint x="4320" y="621" />
@@ -962,25 +1225,6 @@
         <di:waypoint x="5050" y="885" />
         <di:waypoint x="5050" y="830" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0bav6lh_di" bpmnElement="Flow_0bav6lh">
-        <di:waypoint x="350" y="410" />
-        <di:waypoint x="350" y="680" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0ttpfzx_di" bpmnElement="Flow_0ttpfzx">
-        <di:waypoint x="710" y="600" />
-        <di:waypoint x="830" y="600" />
-        <di:waypoint x="830" y="410" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1ujgxo8_di" bpmnElement="Flow_1ujgxo8">
-        <di:waypoint x="710" y="720" />
-        <di:waypoint x="860" y="720" />
-        <di:waypoint x="860" y="410" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0ltafzw_di" bpmnElement="Flow_0ltafzw">
-        <di:waypoint x="710" y="840" />
-        <di:waypoint x="890" y="840" />
-        <di:waypoint x="890" y="410" />
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_08qmhen_di" bpmnElement="Flow_08qmhen">
         <di:waypoint x="1490" y="532" />
         <di:waypoint x="1490" y="451" />
@@ -993,13 +1237,35 @@
         <di:waypoint x="1900" y="521" />
         <di:waypoint x="1900" y="370" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DataOutputAssociation_19lk568_di" bpmnElement="DataOutputAssociation_19lk568">
-        <di:waypoint x="1540" y="574" />
-        <di:waypoint x="4840" y="679" />
+      <bpmndi:BPMNEdge id="Flow_1o3ajkk_di" bpmnElement="Flow_1o3ajkk">
+        <di:waypoint x="1035" y="1643" />
+        <di:waypoint x="1080" y="1643" />
+        <di:waypoint x="1080" y="1040" />
+        <di:waypoint x="875" y="1040" />
+        <di:waypoint x="875" y="480" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DataOutputAssociation_1130lfd_di" bpmnElement="DataOutputAssociation_1130lfd">
-        <di:waypoint x="1740" y="712" />
-        <di:waypoint x="4840" y="687" />
+      <bpmndi:BPMNEdge id="Flow_06bx4kw_di" bpmnElement="Flow_06bx4kw">
+        <di:waypoint x="1010" y="1440" />
+        <di:waypoint x="1010" y="1040" />
+        <di:waypoint x="875" y="1040" />
+        <di:waypoint x="875" y="480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0e1snqs_di" bpmnElement="Flow_0e1snqs">
+        <di:waypoint x="875" y="1320" />
+        <di:waypoint x="875" y="480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0wp2jbl_di" bpmnElement="Flow_0wp2jbl">
+        <di:waypoint x="855" y="1870" />
+        <di:waypoint x="1080" y="1870" />
+        <di:waypoint x="1080" y="1040" />
+        <di:waypoint x="900" y="1040" />
+        <di:waypoint x="900" y="480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_02oem81_di" bpmnElement="Flow_02oem81">
+        <di:waypoint x="350" y="480" />
+        <di:waypoint x="350" y="585" />
+        <di:waypoint x="300" y="585" />
+        <di:waypoint x="300" y="690" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

@@ -16,6 +16,9 @@ spring:
       ddl-auto: update
     open-in-view: false
 
+security:
+  users-xml: ${BANK_SECURITY_USERS_XML:classpath:security/users.xml}
+
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
   allowed-methods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,PATCH,DELETE,OPTIONS}

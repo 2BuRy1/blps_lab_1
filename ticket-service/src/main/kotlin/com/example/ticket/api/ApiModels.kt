@@ -34,6 +34,23 @@ data class CreateOrderRequest(
     val passenger: Passenger,
 )
 
+data class RegisterRequest(
+    val username: String,
+    val password: String,
+    @JsonProperty("password_repeat") val passwordRepeat: String,
+)
+
+data class RegisterResponse(
+    val username: String,
+    val roles: List<String>,
+)
+
+data class LoginResponse(
+    val username: String,
+    val roles: List<String>,
+    val privileges: List<String>,
+)
+
 data class Passenger(
     @field: NotBlank
     @field: Size(min = 10, max = 11)
@@ -136,6 +153,7 @@ data class ConflictError(
     enum class Code {
         SEAT_TAKEN,
         ORDER_STATE_INVALID,
+        USER_ALREADY_EXISTS,
     }
 }
 
@@ -152,3 +170,59 @@ data class PaymentDeclinedError(
         DECLINED,
     }
 }
+
+data class ManagedOrderResponse(
+    val orderId: String,
+    val routeId: String,
+    val seat: String,
+    val amount: Int,
+    val status: Status,
+    @JsonProperty("bank_payment_id") val bankPaymentId: String? = null,
+    @JsonProperty("ticket_id") val ticketId: String? = null,
+    val passenger: Passenger,
+) {
+    enum class Status {
+        CREATED,
+        PENDING_3DS,
+        PAID,
+        DECLINED,
+        CANCELLED,
+    }
+}
+
+data class CancelOrderResponse(
+    val orderId: String,
+    val status: Status,
+) {
+    enum class Status {
+        CANCELLED,
+    }
+}
+
+data class UpdateRouteManageRequest(
+    val from: String? = null,
+    val to: String? = null,
+    val date: String? = null,
+    @JsonProperty("from_terminal") val fromTerminal: String? = null,
+    @JsonProperty("to_terminal") val toTerminal: String? = null,
+    val trainId: String? = null,
+    @JsonProperty("departure_time") val departureTime: String? = null,
+    val price: Int? = null,
+    val capacity: Int? = null,
+    @JsonProperty("free_seats") val freeSeats: Int? = null,
+)
+
+data class ManagedRouteResponse(
+    val routeId: String,
+    val from: String,
+    val to: String,
+    val date: LocalDate,
+    @JsonProperty("from_terminal") val fromTerminal: String? = null,
+    @JsonProperty("to_terminal") val toTerminal: String? = null,
+    val trainId: String,
+    @JsonProperty("departure_time") val departureTime: String,
+    val price: Int,
+    val capacity: Int,
+    @JsonProperty("reserved_seats") val reservedSeats: Int,
+    @JsonProperty("free_seats") val freeSeats: Int,
+)

@@ -1,0 +1,1173 @@
+{
+  "info": {
+    "_postman_id": "7a35bd2c-1f24-4d8c-baf7-f2b5b6d2f4de",
+    "name": "BLPS RZD Ticket + Bank",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.environment.get('routeDate')) {",
+          "  pm.environment.set('routeDate', '2026-04-01');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Auth Sanity",
+      "item": [
+        {
+          "name": "Ticket routes without auth -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/routes?from={{searchFrom}}&to={{searchTo}}&date={{routeDate}}"
+          }
+        },
+        {
+          "name": "Bank pay without auth -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000,\n  \"card_number\": \"4111111111112222\",\n  \"expiration_date\": \"12/30\",\n  \"cvv\": \"123\"\n}"
+            },
+            "url": "{{bankBaseUrl}}/bank/pay"
+          }
+        }
+      ]
+    },
+    [
+      {
+        "name": "00.1 - Login/Register (BPMN)",
+        "item": [
+          {
+            "name": "Register new CLIENT -> set registeredClient*",
+            "event": [
+              {
+                "listen": "prerequest",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": [
+                    "const uname = `client_${Date.now()}`;",
+                    "pm.environment.set('registeredClientUsername', uname);",
+                    "if (!pm.environment.get('registeredClientPassword')) {",
+                    "  pm.environment.set('registeredClientPassword', 'ClientPass123!');",
+                    "}"
+                  ]
+                }
+              },
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+                    "const json = pm.response.json();",
+                    "pm.test('Role CLIENT assigned', function () { pm.expect(json.roles).to.include('CLIENT'); });"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "auth": {
+                "type": "noauth"
+              },
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"username\": \"{{registeredClientUsername}}\",\n  \"password\": \"{{registeredClientPassword}}\",\n  \"password_repeat\": \"{{registeredClientPassword}}\"\n}"
+              },
+              "url": "{{ticketBaseUrl}}/auth/register"
+            }
+          },
+          {
+            "name": "Login registered CLIENT (HTTP Basic)",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                    "const json = pm.response.json();",
+                    "pm.test('Username matches', function () { pm.expect(json.username).to.eql(pm.environment.get('registeredClientUsername')); });",
+                    "pm.test('Has CLIENT role', function () { pm.expect(json.roles).to.include('CLIENT'); });",
+                    "pm.test('Has ROUTE_VIEW privilege', function () { pm.expect(json.privileges).to.include('ROUTE_VIEW'); });"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "auth": {
+                "type": "basic",
+                "basic": [
+                  {
+                    "key": "username",
+                    "value": "{{registeredClientUsername}}",
+                    "type": "string"
+                  },
+                  {
+                    "key": "password",
+                    "value": "{{registeredClientPassword}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "GET",
+              "url": "{{ticketBaseUrl}}/auth/login"
+            }
+          },
+          {
+            "name": "Search routes by registered CLIENT",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": [
+                    "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "auth": {
+                "type": "basic",
+                "basic": [
+                  {
+                    "key": "username",
+                    "value": "{{registeredClientUsername}}",
+                    "type": "string"
+                  },
+                  {
+                    "key": "password",
+                    "value": "{{registeredClientPassword}}",
+                    "type": "string"
+                  }
+                ]
+              },
+              "method": "GET",
+              "url": "{{ticketBaseUrl}}/routes?from={{searchFrom}}&to={{searchTo}}&date={{routeDate}}&sort=price:asc"
+            }
+          }
+        ]
+      }
+    ],
+    {
+      "name": "01 - Client Happy Path",
+      "item": [
+        {
+          "name": "Search routes (CLIENT) -> set routeId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Routes not empty', function () { pm.expect(json.routes && json.routes.length > 0).to.eql(true); });",
+                  "pm.environment.set('routeId', json.routes[0].routeId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/routes?from={{searchFrom}}&to={{searchTo}}&date={{routeDate}}&sort=price:asc"
+          }
+        },
+        {
+          "name": "Create order A (CLIENT) -> set orderA",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('routeId')) { throw new Error('routeId is empty. Run Search routes first.'); }",
+                  "pm.environment.set('seatA', `${Math.floor(Math.random() * 90) + 10}A`);",
+                  "pm.environment.set('passportA', `1234 ${Math.floor(100000 + Math.random() * 900000)}`);",
+                  "pm.environment.set('fullNameA', 'Ivan Petrov');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('orderA', json.orderId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"routeId\": \"{{routeId}}\",\n  \"seat\": \"{{seatA}}\",\n  \"passenger\": {\n    \"passportId\": \"{{passportA}}\",\n    \"fullName\": \"{{fullNameA}}\"\n  }\n}"
+            },
+            "url": "{{ticketBaseUrl}}/orders"
+          }
+        },
+        {
+          "name": "Pay order A SUCCESS (CLIENT) -> set ticketA",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('ticketA', json.ticketId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card_number\": \"4111111111112222\",\n  \"expiration_date\": \"12/30\",\n  \"cvv\": \"123\"\n}"
+            },
+            "url": "{{ticketBaseUrl}}/orders/{{orderA}}/pay"
+          }
+        },
+        {
+          "name": "Get ticket A (CLIENT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/tickets/{{ticketA}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Client 3DS Path",
+      "item": [
+        {
+          "name": "Create order B (CLIENT) -> set orderB",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('routeId')) { throw new Error('routeId is empty. Run Search routes first.'); }",
+                  "pm.environment.set('seatB', `${Math.floor(Math.random() * 90) + 10}B`);",
+                  "pm.environment.set('passportB', `1234 ${Math.floor(100000 + Math.random() * 900000)}`);",
+                  "pm.environment.set('fullNameB', 'Petr Sidorov');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.environment.set('orderB', pm.response.json().orderId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"routeId\": \"{{routeId}}\",\n  \"seat\": \"{{seatB}}\",\n  \"passenger\": {\n    \"passportId\": \"{{passportB}}\",\n    \"fullName\": \"{{fullNameB}}\"\n  }\n}"
+            },
+            "url": "{{ticketBaseUrl}}/orders"
+          }
+        },
+        {
+          "name": "Pay order B REQUIRES_3DS (CLIENT) -> set paymentIdB",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 202', function () { pm.response.to.have.status(202); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('paymentIdB', json.paymentId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card_number\": \"4000000000001111\",\n  \"expiration_date\": \"12/30\",\n  \"cvv\": \"123\"\n}"
+            },
+            "url": "{{ticketBaseUrl}}/orders/{{orderB}}/pay"
+          }
+        },
+        {
+          "name": "Confirm 3DS order B (CLIENT) -> set ticketB",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.environment.set('ticketB', pm.response.json().ticketId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"123456\"\n}"
+            },
+            "url": "{{ticketBaseUrl}}/orders/{{orderB}}/pay/confirm-3ds"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Decline + Operator Retry",
+      "item": [
+        {
+          "name": "Create order C (CLIENT) -> set orderC",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('routeId')) { throw new Error('routeId is empty. Run Search routes first.'); }",
+                  "pm.environment.set('seatC', `${Math.floor(Math.random() * 90) + 10}C`);",
+                  "pm.environment.set('passportC', `1234 ${Math.floor(100000 + Math.random() * 900000)}`);",
+                  "pm.environment.set('fullNameC', 'Alex Ivanov');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.environment.set('orderC', pm.response.json().orderId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"routeId\": \"{{routeId}}\",\n  \"seat\": \"{{seatC}}\",\n  \"passenger\": {\n    \"passportId\": \"{{passportC}}\",\n    \"fullName\": \"{{fullNameC}}\"\n  }\n}"
+            },
+            "url": "{{ticketBaseUrl}}/orders"
+          }
+        },
+        {
+          "name": "Pay order C DECLINED (CLIENT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 402', function () { pm.response.to.have.status(402); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card_number\": \"5555555555550000\",\n  \"expiration_date\": \"12/30\",\n  \"cvv\": \"123\"\n}"
+            },
+            "url": "{{ticketBaseUrl}}/orders/{{orderC}}/pay"
+          }
+        },
+        {
+          "name": "Get order C (OPERATOR)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{operatorUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{operatorPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/service/orders/{{orderC}}"
+          }
+        },
+        {
+          "name": "Retry payment order C (OPERATOR)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 or 202', function () { pm.expect([200, 202]).to.include(pm.response.code); });",
+                  "const json = pm.response.json();",
+                  "if (pm.response.code === 200 && json.ticketId) { pm.environment.set('ticketC', json.ticketId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{operatorUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{operatorPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card_number\": \"4111111111112222\",\n  \"expiration_date\": \"12/30\",\n  \"cvv\": \"123\"\n}"
+            },
+            "url": "{{ticketBaseUrl}}/service/orders/{{orderC}}/retry-payment"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Cancel Flow",
+      "item": [
+        {
+          "name": "Create order D (CLIENT) -> set orderD",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('routeId')) { throw new Error('routeId is empty. Run Search routes first.'); }",
+                  "pm.environment.set('seatD', `${Math.floor(Math.random() * 90) + 10}D`);",
+                  "pm.environment.set('passportD', `1234 ${Math.floor(100000 + Math.random() * 900000)}`);",
+                  "pm.environment.set('fullNameD', 'Sergey Smirnov');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.environment.set('orderD', pm.response.json().orderId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"routeId\": \"{{routeId}}\",\n  \"seat\": \"{{seatD}}\",\n  \"passenger\": {\n    \"passportId\": \"{{passportD}}\",\n    \"fullName\": \"{{fullNameD}}\"\n  }\n}"
+            },
+            "url": "{{ticketBaseUrl}}/orders"
+          }
+        },
+        {
+          "name": "Cancel order D (OPERATOR)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{operatorUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{operatorPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": "{{ticketBaseUrl}}/service/orders/{{orderD}}/cancel"
+          }
+        },
+        {
+          "name": "Get canceled order D (OPERATOR)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Order is CANCELLED', function () { pm.expect(json.status).to.eql('CANCELLED'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{operatorUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{operatorPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/service/orders/{{orderD}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Admin Route Manage",
+      "item": [
+        {
+          "name": "Patch route (ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 1999,\n  \"capacity\": 70\n}"
+            },
+            "url": "{{ticketBaseUrl}}/service/routes/{{routeId}}"
+          }
+        },
+        {
+          "name": "Search routes after patch (CLIENT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/routes?from={{searchFrom}}&to={{searchTo}}&date={{routeDate}}&sort=price:asc"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Authorization Matrix",
+      "item": [
+        {
+          "name": "CLIENT -> /service/orders/{{orderC}} should be 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', function () { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/service/orders/{{orderC}}"
+          }
+        },
+        {
+          "name": "OPERATOR -> /orders/{{orderA}}/pay should be 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', function () { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{operatorUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{operatorPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card_number\": \"4111111111112222\",\n  \"expiration_date\": \"12/30\",\n  \"cvv\": \"123\"\n}"
+            },
+            "url": "{{ticketBaseUrl}}/orders/{{orderA}}/pay"
+          }
+        },
+        {
+          "name": "SERVICE_BANK -> /routes should be 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', function () { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{serviceBankUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{serviceBankPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/routes?from={{searchFrom}}&to={{searchTo}}&date={{routeDate}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Bank Direct (Tech Role)",
+      "item": [
+        {
+          "name": "Bank pay success (SERVICE_BANK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{serviceBankUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{serviceBankPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1200,\n  \"card_number\": \"4111111111112222\",\n  \"expiration_date\": \"12/30\",\n  \"cvv\": \"123\"\n}"
+            },
+            "url": "{{bankBaseUrl}}/bank/pay"
+          }
+        },
+        {
+          "name": "Bank pay REQUIRES_3DS (SERVICE_BANK) -> set bankPaymentId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('3DS required', function () { pm.expect(json.status).to.eql('REQUIRES_3DS'); });",
+                  "pm.environment.set('bankPaymentId', json.payment_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{serviceBankUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{serviceBankPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1200,\n  \"card_number\": \"4000000000001111\",\n  \"expiration_date\": \"12/30\",\n  \"cvv\": \"123\"\n}"
+            },
+            "url": "{{bankBaseUrl}}/bank/pay"
+          }
+        },
+        {
+          "name": "Bank confirm 3DS (SERVICE_BANK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Status SUCCESS', function () { pm.expect(json.status).to.eql('SUCCESS'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{serviceBankUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{serviceBankPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"123456\"\n}"
+            },
+            "url": "{{bankBaseUrl}}/bank/pay/{{bankPaymentId}}/confirm-3ds"
+          }
+        }
+      ]
+    }
+  ]
+}

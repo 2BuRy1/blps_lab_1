@@ -5,4 +5,5 @@ enum class OrderStatus {
     PENDING_3DS,
     PAID,
     DECLINED,
+    CANCELLED,
 }
