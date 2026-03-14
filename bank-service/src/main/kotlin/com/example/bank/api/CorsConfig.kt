@@ -1,4 +1,4 @@
-package com.example.bank.config
+package com.example.bank.api
 
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Configuration

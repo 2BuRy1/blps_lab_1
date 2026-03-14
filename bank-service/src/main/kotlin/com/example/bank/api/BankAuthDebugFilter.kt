@@ -1,4 +1,4 @@
-package com.example.bank.config
+package com.example.bank.api
 
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest

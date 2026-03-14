@@ -1,4 +1,4 @@
-package com.example.bank.config
+package com.example.bank.api
 
 import org.slf4j.LoggerFactory
 import org.springframework.context.event.EventListener
