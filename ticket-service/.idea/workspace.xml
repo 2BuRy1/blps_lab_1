@@ -5,28 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="41a9f74a-22f5-492b-b8e9-386b6e7fb110" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../bank-service/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/AppPrivilege.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/security/AppPrivilege.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/AppRole.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/security/AppRole.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankAuthDebugFilter.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/config/BankAuthDebugFilter.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankAuthEventsLogger.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/config/BankAuthEventsLogger.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankController.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankController.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankExceptionHandler.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankExceptionHandler.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankPaymentService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/service/BankPaymentService.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/CorsConfig.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/config/CorsConfig.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/PaymentAttemptEntity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/persistence/entity/PaymentAttemptEntity.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/PaymentAttemptRepository.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/persistence/repository/PaymentAttemptRepository.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/PaymentNotFoundException.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/service/PaymentNotFoundException.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/SecurityConfig.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/config/SecurityConfig.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/XmlSecurityModels.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/security/XmlSecurityModels.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/XmlUserDetailsService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/security/XmlUserDetailsService.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/resources/application.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/~$доров Поленов лаб2.docx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/Федоров Поленов лаб2.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/Федоров Поленов лаб2.docx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../rzhd_process.bpmn" beforeDir="false" afterPath="$PROJECT_DIR$/../rzhd_process.bpmn" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/service/BankPaymentService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/service/BankPaymentService.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/client/BankGateway.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/client/BankGateway.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/TicketProcessService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/TicketProcessService.kt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -159,7 +140,7 @@
       <workItem from="1773240396313" duration="599000" />
       <workItem from="1773241318454" duration="10000" />
       <workItem from="1773264736722" duration="48000" />
-      <workItem from="1773421955467" duration="22000000" />
+      <workItem from="1773421955467" duration="22264000" />
     </task>
     <servers />
   </component>

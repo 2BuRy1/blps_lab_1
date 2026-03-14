@@ -37,11 +37,13 @@ class BankGateway(
             expirationDate = request.expirationDate,
             cvv = request.cvv,
         )
+        var txOutcome = "UNKNOWN"
+        log.info("BANK_TX_BEGIN phase=ticket_to_bank op=pay amount={}", amount)
         log.info("BANK_OUT authorize username={} amount={}", bankUsername.trim(), amount)
         log.info("BANK_OUT auth_fingerprint={}", authFingerprint)
 
         return try {
-            bankRestClient.post()
+            val decision = bankRestClient.post()
                 .uri("/bank/pay")
                 .headers { headers -> applyBankAuth(headers) }
                 .contentType(MediaType.APPLICATION_JSON)
@@ -49,7 +51,10 @@ class BankGateway(
                 .retrieve()
                 .body(BankPayDecision::class.java)
                 ?: throw IllegalStateException("Empty bank response")
+            txOutcome = decision.status.name
+            decision
         } catch (ex: RestClientResponseException) {
+            txOutcome = "HTTP_${ex.statusCode.value()}"
             if (ex.statusCode.value() == 400) {
                 throw ValidationException(
                     details = listOf(
@@ -64,19 +69,24 @@ class BankGateway(
                 "Bank integration failed with HTTP ${ex.statusCode.value()}: ${ex.responseBodyAsString.take(200)}",
             )
         } catch (ex: Exception) {
+            txOutcome = "ERROR_${ex.javaClass.simpleName}"
             throw IntegrationUnavailableException(
                 "Bank integration is unavailable: ${ex.javaClass.simpleName}.",
             )
+        } finally {
+            log.info("BANK_TX_END phase=ticket_to_bank op=pay outcome={}", txOutcome)
         }
     }
 
     fun confirm3ds(paymentId: String, code: String): BankPayDecision {
         val payload = BankConfirm3dsPayload(code = code)
+        var txOutcome = "UNKNOWN"
+        log.info("BANK_TX_BEGIN phase=ticket_to_bank op=confirm_3ds paymentId={}", paymentId)
         log.info("BANK_OUT confirm3ds username={} paymentId={}", bankUsername.trim(), paymentId)
         log.info("BANK_OUT auth_fingerprint={}", authFingerprint)
 
         return try {
-            bankRestClient.post()
+            val decision = bankRestClient.post()
                 .uri("/bank/pay/{paymentId}/confirm-3ds", paymentId)
                 .headers { headers -> applyBankAuth(headers) }
                 .contentType(MediaType.APPLICATION_JSON)
@@ -84,7 +94,10 @@ class BankGateway(
                 .retrieve()
                 .body(BankPayDecision::class.java)
                 ?: throw IllegalStateException("Empty bank response")
+            txOutcome = decision.status.name
+            decision
         } catch (ex: RestClientResponseException) {
+            txOutcome = "HTTP_${ex.statusCode.value()}"
             if (ex.statusCode.value() == 400) {
                 throw ValidationException(
                     details = listOf(
@@ -99,9 +112,12 @@ class BankGateway(
                 "Bank integration failed with HTTP ${ex.statusCode.value()}: ${ex.responseBodyAsString.take(200)}",
             )
         } catch (ex: Exception) {
+            txOutcome = "ERROR_${ex.javaClass.simpleName}"
             throw IntegrationUnavailableException(
                 "Bank integration is unavailable: ${ex.javaClass.simpleName}.",
             )
+        } finally {
+            log.info("BANK_TX_END phase=ticket_to_bank op=confirm_3ds paymentId={} outcome={}", paymentId, txOutcome)
         }
     }
 

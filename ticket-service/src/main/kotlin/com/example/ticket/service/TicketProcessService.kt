@@ -184,6 +184,7 @@ class TicketProcessService(
     @PreAuthorize("hasAuthority('ORDER_PAY')")
     @Transactional(noRollbackFor = [PaymentDeclinedException::class])
     fun confirm3ds(orderId: String, request: Confirm3dsRequest): PayOrderSuccessResponse {
+
         validateConfirm3dsRequest(request)
 
         val order = orderRepository.findByOrderIdForUpdate(orderId)
@@ -693,6 +694,7 @@ class TicketProcessService(
             OrderStatus.CANCELLED -> ManagedOrderResponse.Status.CANCELLED
         }
     }
+
 
     private fun nextOrderId(): String = "o${UUID.randomUUID().toString().replace("-", "").take(12)}"
 
