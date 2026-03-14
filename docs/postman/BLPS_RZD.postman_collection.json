@@ -75,129 +75,127 @@
         }
       ]
     },
-    [
-      {
-        "name": "00.1 - Login/Register (BPMN)",
-        "item": [
-          {
-            "name": "Register new CLIENT -> set registeredClient*",
-            "event": [
-              {
-                "listen": "prerequest",
-                "script": {
-                  "type": "text/javascript",
-                  "exec": [
-                    "const uname = `client_${Date.now()}`;",
-                    "pm.environment.set('registeredClientUsername', uname);",
-                    "if (!pm.environment.get('registeredClientPassword')) {",
-                    "  pm.environment.set('registeredClientPassword', 'ClientPass123!');",
-                    "}"
-                  ]
-                }
-              },
-              {
-                "listen": "test",
-                "script": {
-                  "type": "text/javascript",
-                  "exec": [
-                    "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
-                    "const json = pm.response.json();",
-                    "pm.test('Role CLIENT assigned', function () { pm.expect(json.roles).to.include('CLIENT'); });"
-                  ]
-                }
-              }
-            ],
-            "request": {
-              "auth": {
-                "type": "noauth"
-              },
-              "method": "POST",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": {
-                "mode": "raw",
-                "raw": "{\n  \"username\": \"{{registeredClientUsername}}\",\n  \"password\": \"{{registeredClientPassword}}\",\n  \"password_repeat\": \"{{registeredClientPassword}}\"\n}"
-              },
-              "url": "{{ticketBaseUrl}}/auth/register"
-            }
-          },
-          {
-            "name": "Login registered CLIENT (HTTP Basic)",
-            "event": [
-              {
-                "listen": "test",
-                "script": {
-                  "type": "text/javascript",
-                  "exec": [
-                    "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
-                    "const json = pm.response.json();",
-                    "pm.test('Username matches', function () { pm.expect(json.username).to.eql(pm.environment.get('registeredClientUsername')); });",
-                    "pm.test('Has CLIENT role', function () { pm.expect(json.roles).to.include('CLIENT'); });",
-                    "pm.test('Has ROUTE_VIEW privilege', function () { pm.expect(json.privileges).to.include('ROUTE_VIEW'); });"
-                  ]
-                }
-              }
-            ],
-            "request": {
-              "auth": {
-                "type": "basic",
-                "basic": [
-                  {
-                    "key": "username",
-                    "value": "{{registeredClientUsername}}",
-                    "type": "string"
-                  },
-                  {
-                    "key": "password",
-                    "value": "{{registeredClientPassword}}",
-                    "type": "string"
-                  }
+    {
+      "name": "00.1 - Login/Register (BPMN)",
+      "item": [
+        {
+          "name": "Register new CLIENT -> set registeredClient*",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const uname = `client_${Date.now()}`;",
+                  "pm.environment.set('registeredClientUsername', uname);",
+                  "if (!pm.environment.get('registeredClientPassword')) {",
+                  "  pm.environment.set('registeredClientPassword', 'ClientPass123!');",
+                  "}"
                 ]
-              },
-              "method": "GET",
-              "url": "{{ticketBaseUrl}}/auth/login"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Role CLIENT assigned', function () { pm.expect(json.roles).to.include('CLIENT'); });"
+                ]
+              }
             }
-          },
-          {
-            "name": "Search routes by registered CLIENT",
-            "event": [
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
               {
-                "listen": "test",
-                "script": {
-                  "type": "text/javascript",
-                  "exec": [
-                    "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
-                  ]
-                }
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
-            "request": {
-              "auth": {
-                "type": "basic",
-                "basic": [
-                  {
-                    "key": "username",
-                    "value": "{{registeredClientUsername}}",
-                    "type": "string"
-                  },
-                  {
-                    "key": "password",
-                    "value": "{{registeredClientPassword}}",
-                    "type": "string"
-                  }
-                ]
-              },
-              "method": "GET",
-              "url": "{{ticketBaseUrl}}/routes?from={{searchFrom}}&to={{searchTo}}&date={{routeDate}}&sort=price:asc"
-            }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{registeredClientUsername}}\",\n  \"password\": \"{{registeredClientPassword}}\",\n  \"password_repeat\": \"{{registeredClientPassword}}\"\n}"
+            },
+            "url": "{{ticketBaseUrl}}/auth/register"
           }
-        ]
-      }
-    ],
+        },
+        {
+          "name": "Login registered CLIENT (HTTP Basic)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('Username matches', function () { pm.expect(json.username).to.eql(pm.environment.get('registeredClientUsername')); });",
+                  "pm.test('Has CLIENT role', function () { pm.expect(json.roles).to.include('CLIENT'); });",
+                  "pm.test('Has ROUTE_VIEW privilege', function () { pm.expect(json.privileges).to.include('ROUTE_VIEW'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{registeredClientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{registeredClientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Search routes by registered CLIENT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{registeredClientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{registeredClientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/routes?from={{searchFrom}}&to={{searchTo}}&date={{routeDate}}&sort=price:asc"
+          }
+        }
+      ]
+    },
     {
       "name": "01 - Client Happy Path",
       "item": [

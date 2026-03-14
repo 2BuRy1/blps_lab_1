@@ -17,7 +17,7 @@ spring:
     open-in-view: false
 
 security:
-  users-xml: ${BANK_SECURITY_USERS_XML:classpath:security/users.xml}
+  users-xml: classpath:security/users.xml
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:*}

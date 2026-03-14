@@ -2,7 +2,6 @@ package com.example.bank.security
 
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.ResourceLoader
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.userdetails.User
@@ -10,23 +9,29 @@ import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.core.userdetails.UsernameNotFoundException
 import org.springframework.stereotype.Service
+import org.slf4j.LoggerFactory
 
 @Service
 class XmlUserDetailsService(
-    @Value("\${security.users-xml:classpath:security/users.xml}")
-    private val usersXmlLocation: String,
     private val resourceLoader: ResourceLoader,
 ) : UserDetailsService {
 
+    private val log = LoggerFactory.getLogger(javaClass)
+    private val usersXmlLocation = "classpath:security/users.xml"
     private val xmlMapper = XmlMapper().apply { registerKotlinModule() }
-    private val usersByUsername: Map<String, UserDetails> by lazy { loadUsers() }
+    private val usersByUsername: Map<String, StoredUser> by lazy { loadUsers() }
 
     override fun loadUserByUsername(username: String): UserDetails {
-        return usersByUsername[username]
+        val storedUser = usersByUsername[username]
             ?: throw UsernameNotFoundException("User '$username' is not configured.")
+        return User.builder()
+            .username(storedUser.username)
+            .password(storedUser.password)
+            .authorities(storedUser.authorities.map(::SimpleGrantedAuthority))
+            .build()
     }
 
-    private fun loadUsers(): Map<String, UserDetails> {
+    private fun loadUsers(): Map<String, StoredUser> {
         val resource = resourceLoader.getResource(usersXmlLocation)
         if (!resource.exists()) {
             throw IllegalStateException("Security XML users file not found: $usersXmlLocation")
@@ -35,6 +40,12 @@ class XmlUserDetailsService(
         val xmlUsers = resource.inputStream.use { input ->
             xmlMapper.readValue(input, XmlUsers::class.java)
         }
+
+        log.info(
+            "BANK_USERS_XML loaded from={} users={}",
+            usersXmlLocation,
+            xmlUsers.users.joinToString(",") { it.username.trim() },
+        )
 
         return xmlUsers.users.associate { xmlUser ->
             val normalizedUsername = xmlUser.username.trim()
@@ -62,11 +73,29 @@ class XmlUserDetailsService(
                 }
             }
 
-            normalizedUsername to User.builder()
-                .username(normalizedUsername)
-                .password(xmlUser.password.trim())
-                .authorities(authorities)
-                .build()
+            normalizedUsername to StoredUser(
+                username = normalizedUsername,
+                password = normalizePasswordForDelegatingEncoder(xmlUser.password.trim()),
+                authorities = authorities.map { it.authority }.toSet(),
+            )
         }
     }
+
+    private fun normalizePasswordForDelegatingEncoder(rawPassword: String): String {
+        if (rawPassword.isBlank()) {
+            return rawPassword
+        }
+
+        return if (rawPassword.startsWith("{") && rawPassword.contains("}")) {
+            rawPassword
+        } else {
+            "{noop}$rawPassword"
+        }
+    }
+
+    private data class StoredUser(
+        val username: String,
+        val password: String,
+        val authorities: Set<String>,
+    )
 }

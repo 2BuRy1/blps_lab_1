@@ -227,9 +227,6 @@
     </bpmn:exclusiveGateway>
     <bpmn:serviceTask id="Activity_03arb5f" name="авторизовать клиента">
       <bpmn:incoming>Flow_0fufp6d</bpmn:incoming>
-      <bpmn:dataOutputAssociation id="DataOutputAssociation_19lk568">
-        <bpmn:targetRef>DataStoreRef_Main</bpmn:targetRef>
-      </bpmn:dataOutputAssociation>
     </bpmn:serviceTask>
     <bpmn:serviceTask id="Activity_12rft2v" name="Проверить данные для регистрации">
       <bpmn:incoming>Flow_1miqj3g</bpmn:incoming>
@@ -237,9 +234,6 @@
     </bpmn:serviceTask>
     <bpmn:serviceTask id="Activity_0rswzh1" name="Создать аккаунт">
       <bpmn:incoming>Flow_022627a</bpmn:incoming>
-      <bpmn:dataOutputAssociation id="DataOutputAssociation_1130lfd">
-        <bpmn:targetRef>DataStoreRef_Main</bpmn:targetRef>
-      </bpmn:dataOutputAssociation>
     </bpmn:serviceTask>
     <bpmn:boundaryEvent id="Event_1qgyhyd" attachedToRef="Activity_12rft2v">
       <bpmn:errorEventDefinition id="ErrorEventDefinition_0as3l0g" />
@@ -935,8 +929,10 @@
         <di:waypoint x="6280" y="552" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1s90nkc_di" bpmnElement="Flow_1s90nkc">
-        <di:waypoint x="6160" y="860" />
-        <di:waypoint x="6160" y="647" />
+        <di:waypoint x="6160" y="842" />
+        <di:waypoint x="6160" y="810" />
+        <di:waypoint x="6190" y="810" />
+        <di:waypoint x="6190" y="687" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_0j99lvr_di" bpmnElement="Flow_0j99lvr">
         <di:waypoint x="320" y="730" />
@@ -1110,14 +1106,6 @@
       <bpmndi:BPMNEdge id="Flow_1ox9rm8_di" bpmnElement="Flow_1ox9rm8">
         <di:waypoint x="425" y="1870" />
         <di:waypoint x="625" y="1870" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DataOutputAssociation_19lk568_di" bpmnElement="DataOutputAssociation_19lk568">
-        <di:waypoint x="1540" y="574" />
-        <di:waypoint x="4840" y="679" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DataOutputAssociation_1130lfd_di" bpmnElement="DataOutputAssociation_1130lfd">
-        <di:waypoint x="1740" y="712" />
-        <di:waypoint x="4840" y="687" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DataOutputAssociation_0vz39m7_di" bpmnElement="DataOutputAssociation_0vz39m7">
         <di:waypoint x="4320" y="621" />

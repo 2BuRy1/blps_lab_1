@@ -42,8 +42,20 @@ class XmlUserDetailsService(
 
         return User.builder()
             .username(normalizedUsername)
-            .password(xmlUser.password.trim())
+            .password(normalizePasswordForDelegatingEncoder(xmlUser.password.trim()))
             .authorities(authorities)
             .build()
+    }
+
+    private fun normalizePasswordForDelegatingEncoder(rawPassword: String): String {
+        if (rawPassword.isBlank()) {
+            return rawPassword
+        }
+
+        return if (rawPassword.startsWith("{") && rawPassword.contains("}")) {
+            rawPassword
+        } else {
+            "{noop}$rawPassword"
+        }
     }
 }

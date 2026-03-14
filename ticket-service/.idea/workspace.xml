@@ -5,15 +5,24 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="41a9f74a-22f5-492b-b8e9-386b6e7fb110" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../bank-service/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/build.gradle.kts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankController.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankController.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/config/SecurityConfig.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/config/SecurityConfig.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/security/AppPrivilege.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/security/AppPrivilege.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/security/AppRole.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/security/AppRole.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/security/XmlUserDetailsService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/security/XmlUserDetailsService.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../bank-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/resources/security/users.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/resources/security/users.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/postman/BLPS_RZD.postman_collection.json" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/postman/BLPS_RZD.postman_collection.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rzhd_process.bpmn" beforeDir="false" afterPath="$PROJECT_DIR$/../rzhd_process.bpmn" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle.kts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/api/ApiModels.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/api/ApiModels.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/bootstrap/RoutesDataInitializer.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/bootstrap/RoutesDataInitializer.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/client/BankGateway.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/client/BankGateway.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/config/BankClientConfig.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/config/BankClientConfig.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/persistence/entity/OrderStatus.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/persistence/entity/OrderStatus.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/config/SecurityConfig.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/config/SecurityConfig.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/exception/GlobalExceptionHandler.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/exception/GlobalExceptionHandler.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/exception/ServiceExceptions.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/exception/ServiceExceptions.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/security/XmlUserDetailsService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/security/XmlUserDetailsService.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/security/XmlUserStore.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/security/XmlUserStore.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/TicketProcessService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/TicketProcessService.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.yml" afterDir="false" />
     </list>
@@ -145,7 +154,7 @@
       <workItem from="1773240396313" duration="599000" />
       <workItem from="1773241318454" duration="10000" />
       <workItem from="1773264736722" duration="48000" />
-      <workItem from="1773421955467" duration="8319000" />
+      <workItem from="1773421955467" duration="16006000" />
     </task>
     <servers />
   </component>

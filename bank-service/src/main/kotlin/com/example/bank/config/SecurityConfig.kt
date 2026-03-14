@@ -7,8 +7,11 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.crypto.password.DelegatingPasswordEncoder
+import org.springframework.security.crypto.password.NoOpPasswordEncoder
 import org.springframework.security.crypto.factory.PasswordEncoderFactories
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter
 import org.springframework.security.web.SecurityFilterChain
 
 @Configuration
@@ -17,7 +20,10 @@ import org.springframework.security.web.SecurityFilterChain
 class SecurityConfig {
 
     @Bean
-    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
+    fun securityFilterChain(
+        http: HttpSecurity,
+        bankAuthDebugFilter: BankAuthDebugFilter,
+    ): SecurityFilterChain {
         http
             .csrf { it.disable() }
             .cors(Customizer.withDefaults())
@@ -31,12 +37,18 @@ class SecurityConfig {
                 it.anyRequest().authenticated()
             }
             .httpBasic(Customizer.withDefaults())
+            .addFilterBefore(bankAuthDebugFilter, BasicAuthenticationFilter::class.java)
 
         return http.build()
     }
 
     @Bean
     fun passwordEncoder(): PasswordEncoder {
-        return PasswordEncoderFactories.createDelegatingPasswordEncoder()
+        val encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder()
+        if (encoder is DelegatingPasswordEncoder) {
+            // Backward-compatible fallback for legacy passwords stored without {id} prefix.
+            encoder.setDefaultPasswordEncoderForMatches(NoOpPasswordEncoder.getInstance())
+        }
+        return encoder
     }
 }

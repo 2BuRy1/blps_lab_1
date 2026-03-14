@@ -20,6 +20,7 @@ import com.example.ticket.api.ValidationDetail
 import com.example.ticket.client.BankGateway
 import com.example.ticket.client.BankPayDecision
 import com.example.ticket.exception.ConflictException
+import com.example.ticket.exception.IntegrationUnavailableException
 import com.example.ticket.exception.NotFoundException
 import com.example.ticket.exception.PaymentDeclinedException
 import com.example.ticket.exception.ValidationException
@@ -204,7 +205,11 @@ class TicketProcessService(
                 message = "Bank payment id is missing.",
             )
 
-        val bankResult = bankGateway.confirm3ds(paymentId = paymentId, code = request.code)
+        val bankResult = try {
+            bankGateway.confirm3ds(paymentId = paymentId, code = request.code)
+        } catch (_: IntegrationUnavailableException) {
+            declineOrder(order, "BANK_UNAVAILABLE")
+        }
         return when (bankResult.status) {
             BankPayDecision.Status.SUCCESS -> issueTicket(order)
             BankPayDecision.Status.DECLINED -> declineOrder(order, bankResult.reason)
@@ -484,7 +489,11 @@ class TicketProcessService(
     }
 
     private fun processPayment(order: OrderEntity, request: PayOrderRequest): Any {
-        val bankResult = bankGateway.authorize(amount = order.amount, request = request)
+        val bankResult = try {
+            bankGateway.authorize(amount = order.amount, request = request)
+        } catch (_: IntegrationUnavailableException) {
+            declineOrder(order, "BANK_UNAVAILABLE")
+        }
 
         return when (bankResult.status) {
             BankPayDecision.Status.SUCCESS -> issueTicket(order)

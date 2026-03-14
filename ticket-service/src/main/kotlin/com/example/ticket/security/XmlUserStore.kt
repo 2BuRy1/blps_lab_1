@@ -116,7 +116,12 @@ class XmlUserStore(
 
     private fun resolveWritableFilePath(): Path? {
         if (usersXmlLocation.startsWith("file:")) {
-            return Paths.get(URI.create(usersXmlLocation))
+            return runCatching {
+                Paths.get(URI.create(usersXmlLocation))
+            }.getOrElse {
+                // Supports relative form like file:./data/ticket-users.xml
+                Paths.get(usersXmlLocation.removePrefix("file:"))
+            }
         }
 
         if (!usersXmlLocation.startsWith("classpath:")) {

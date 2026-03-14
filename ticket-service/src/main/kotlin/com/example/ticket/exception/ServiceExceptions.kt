@@ -22,3 +22,7 @@ class ConflictException(
 class PaymentDeclinedException(
     message: String,
 ) : RuntimeException(message)
+
+class IntegrationUnavailableException(
+    message: String,
+) : RuntimeException(message)

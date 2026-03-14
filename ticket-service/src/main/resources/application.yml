@@ -23,9 +23,9 @@ spring:
 
 integration:
   bank:
-    base-url: ${BANK_SERVICE_BASE_URL:http://localhost:8081/api/v1}
-    username: ${BANK_SERVICE_USERNAME:service_bank}
-    password: ${BANK_SERVICE_PASSWORD:service123}
+    base-url: http://localhost:8081/api/v1
+    username: service_bank
+    password: service123
 
 security:
   users-xml: ${TICKET_SECURITY_USERS_XML:file:./data/ticket-users.xml}

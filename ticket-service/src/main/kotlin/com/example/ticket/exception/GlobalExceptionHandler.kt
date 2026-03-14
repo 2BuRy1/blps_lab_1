@@ -1,6 +1,7 @@
 package com.example.ticket.exception
 
 import com.example.ticket.api.ConflictError
+import com.example.ticket.api.IntegrationUnavailableError
 import com.example.ticket.api.NotFoundError
 import com.example.ticket.api.PaymentDeclinedError
 import com.example.ticket.api.ValidationDetail
@@ -39,6 +40,16 @@ class GlobalExceptionHandler {
     fun handlePaymentDeclined(ex: PaymentDeclinedException): ResponseEntity<PaymentDeclinedError> {
         return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
             .body(PaymentDeclinedError(message = ex.message ?: "Payment was declined by the bank."))
+    }
+
+    @ExceptionHandler(IntegrationUnavailableException::class)
+    fun handleIntegrationUnavailable(ex: IntegrationUnavailableException): ResponseEntity<IntegrationUnavailableError> {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(
+                IntegrationUnavailableError(
+                    message = ex.message ?: "Integration with external service is unavailable.",
+                )
+            )
     }
 
     @ExceptionHandler(IllegalArgumentException::class)

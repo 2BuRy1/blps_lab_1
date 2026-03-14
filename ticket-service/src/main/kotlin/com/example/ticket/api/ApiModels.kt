@@ -171,6 +171,20 @@ data class PaymentDeclinedError(
     }
 }
 
+data class IntegrationUnavailableError(
+    val type: Type = Type.INTEGRATION_UNAVAILABLE,
+    val service: Service = Service.BANK,
+    val message: String,
+) {
+    enum class Type {
+        INTEGRATION_UNAVAILABLE,
+    }
+
+    enum class Service {
+        BANK,
+    }
+}
+
 data class ManagedOrderResponse(
     val orderId: String,
     val routeId: String,

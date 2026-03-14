@@ -7,6 +7,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.crypto.password.DelegatingPasswordEncoder
+import org.springframework.security.crypto.password.NoOpPasswordEncoder
 import org.springframework.security.crypto.factory.PasswordEncoderFactories
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
@@ -38,6 +40,11 @@ class SecurityConfig {
 
     @Bean
     fun passwordEncoder(): PasswordEncoder {
-        return PasswordEncoderFactories.createDelegatingPasswordEncoder()
+        val encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder()
+        if (encoder is DelegatingPasswordEncoder) {
+            // Backward-compatible fallback for legacy passwords stored without {id} prefix.
+            encoder.setDefaultPasswordEncoderForMatches(NoOpPasswordEncoder.getInstance())
+        }
+        return encoder
     }
 }
