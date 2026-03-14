@@ -1,4 +1,4 @@
-package com.example.bank.api
+package com.example.bank.service
 
 class PaymentNotFoundException(
     paymentId: String,

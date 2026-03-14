@@ -1,4 +1,4 @@
-package com.example.bank.api
+package com.example.bank.security
 
 enum class AppRole(
     val privileges: Set<AppPrivilege>,

@@ -1,4 +1,4 @@
-package com.example.bank.api
+package com.example.bank.persistence.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity

@@ -1,4 +1,4 @@
-package com.example.bank.api
+package com.example.bank.security
 
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
