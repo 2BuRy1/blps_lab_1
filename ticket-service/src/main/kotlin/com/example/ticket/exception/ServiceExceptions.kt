@@ -26,3 +26,7 @@ class PaymentDeclinedException(
 class IntegrationUnavailableException(
     message: String,
 ) : RuntimeException(message)
+
+class DataBaseUnavailableException(
+    message: String
+): RuntimeException(message)

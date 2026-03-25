@@ -20,6 +20,7 @@ import com.example.ticket.api.ValidationDetail
 import com.example.ticket.client.BankGateway
 import com.example.ticket.client.BankPayDecision
 import com.example.ticket.exception.ConflictException
+import com.example.ticket.exception.DataBaseUnavailableException
 import com.example.ticket.exception.IntegrationUnavailableException
 import com.example.ticket.exception.NotFoundException
 import com.example.ticket.exception.PaymentDeclinedException
@@ -39,6 +40,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
 import java.time.LocalTime
@@ -161,7 +163,7 @@ class TicketProcessService(
     }
 
     @PreAuthorize("hasAuthority('ORDER_PAY')")
-    @Transactional(noRollbackFor = [PaymentDeclinedException::class])
+    @Transactional(noRollbackFor = [PaymentDeclinedException::class, IntegrationUnavailableException::class])
     fun payOrder(orderId: String, request: PayOrderRequest): Any {
         validatePayOrderRequest(request)
 
@@ -182,7 +184,7 @@ class TicketProcessService(
     }
 
     @PreAuthorize("hasAuthority('ORDER_PAY')")
-    @Transactional(noRollbackFor = [PaymentDeclinedException::class])
+    @Transactional(noRollbackFor = [PaymentDeclinedException::class, IntegrationUnavailableException::class])
     fun confirm3ds(orderId: String, request: Confirm3dsRequest): PayOrderSuccessResponse {
 
         validateConfirm3dsRequest(request)
@@ -209,7 +211,7 @@ class TicketProcessService(
         val bankResult = try {
             bankGateway.confirm3ds(paymentId = paymentId, code = request.code)
         } catch (_: IntegrationUnavailableException) {
-            declineOrder(order, "BANK_UNAVAILABLE")
+            terminateProcessDueToBankUnavailable(order)
         }
         return when (bankResult.status) {
             BankPayDecision.Status.SUCCESS -> issueTicket(order)
@@ -282,7 +284,7 @@ class TicketProcessService(
         when (order.status) {
             OrderStatus.CREATED,
             OrderStatus.PENDING_3DS,
-            -> {
+                -> {
                 releaseReservedSeat(order)
                 order.status = OrderStatus.CANCELLED
                 order.bankPaymentId = null
@@ -296,7 +298,7 @@ class TicketProcessService(
 
             OrderStatus.DECLINED,
             OrderStatus.CANCELLED,
-            -> throw ConflictException(
+                -> throw ConflictException(
                 code = ConflictError.Code.ORDER_STATE_INVALID,
                 message = "Order is already inactive.",
             )
@@ -309,7 +311,7 @@ class TicketProcessService(
     }
 
     @PreAuthorize("hasAuthority('ORDER_MANAGE')")
-    @Transactional(noRollbackFor = [PaymentDeclinedException::class])
+    @Transactional(noRollbackFor = [PaymentDeclinedException::class, IntegrationUnavailableException::class])
     fun retryPayment(orderId: String, request: PayOrderRequest): Any {
         validatePayOrderRequest(request)
 
@@ -489,11 +491,12 @@ class TicketProcessService(
         )
     }
 
-    private fun processPayment(order: OrderEntity, request: PayOrderRequest): Any {
+    @Transactional
+    fun processPayment(order: OrderEntity, request: PayOrderRequest): Any {
         val bankResult = try {
             bankGateway.authorize(amount = order.amount, request = request)
         } catch (_: IntegrationUnavailableException) {
-            declineOrder(order, "BANK_UNAVAILABLE")
+            terminateProcessDueToBankUnavailable(order)
         }
 
         return when (bankResult.status) {
@@ -547,6 +550,21 @@ class TicketProcessService(
 
         throw PaymentDeclinedException(
             "Payment was declined by the bank${reason?.let { ": $it" } ?: "."}",
+        )
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun terminateProcessDueToBankUnavailable(order: OrderEntity): Nothing {
+        try {
+            releaseReservedSeat(order)
+            order.status = OrderStatus.DECLINED
+            order.bankPaymentId = null
+            orderRepository.save(order)
+        }catch (_ : RuntimeException) {
+            throw DataBaseUnavailableException("Database unavailable")
+        }
+        throw IntegrationUnavailableException(
+            "Bank is unavailable. Payment process was terminated.",
         )
     }
 
