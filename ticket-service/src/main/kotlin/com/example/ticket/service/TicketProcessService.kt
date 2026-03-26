@@ -20,7 +20,6 @@ import com.example.ticket.api.ValidationDetail
 import com.example.ticket.client.BankGateway
 import com.example.ticket.client.BankPayDecision
 import com.example.ticket.exception.ConflictException
-import com.example.ticket.exception.DataBaseUnavailableException
 import com.example.ticket.exception.IntegrationUnavailableException
 import com.example.ticket.exception.NotFoundException
 import com.example.ticket.exception.PaymentDeclinedException
@@ -40,8 +39,8 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Propagation
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import java.time.LocalDate
 import java.time.LocalTime
 import java.util.UUID
@@ -53,10 +52,18 @@ class TicketProcessService(
     private val ticketRepository: TicketRepository,
     private val bankGateway: BankGateway,
     private val routeSearchValidator: RouteSearchValidator,
+    transactionManager: PlatformTransactionManager,
 ) {
 
+    private val txTemplate = TransactionTemplate(transactionManager)
+
+    private val readOnlyTxTemplate = TransactionTemplate(transactionManager).apply {
+        isReadOnly = true
+    }
+
+    private val noRollbackForPaymentDeclinedTxTemplate = TransactionTemplate(transactionManager)
+
     @PreAuthorize("hasAuthority('ROUTE_VIEW')")
-    @Transactional(readOnly = true)
     fun searchRoutes(
         from: String,
         to: String,
@@ -71,432 +78,463 @@ class TicketProcessService(
         sort: String?,
         pageable: Pageable,
     ): RoutesResponse {
-        val criteria = routeSearchValidator.validateAndBuild(
-            from = from,
-            to = to,
-            date = date,
-            fromTerminal = fromTerminal,
-            toTerminal = toTerminal,
-            minPrice = minPrice,
-            maxPrice = maxPrice,
-            departureAfter = departureAfter,
-            departureBefore = departureBefore,
-            onlyWithSeats = onlyWithSeats,
-            sort = sort,
-        )
+        return readOnlyTxTemplate.execute {
+            val criteria = routeSearchValidator.validateAndBuild(
+                from = from,
+                to = to,
+                date = date,
+                fromTerminal = fromTerminal,
+                toTerminal = toTerminal,
+                minPrice = minPrice,
+                maxPrice = maxPrice,
+                departureAfter = departureAfter,
+                departureBefore = departureBefore,
+                onlyWithSeats = onlyWithSeats,
+                sort = sort,
+            )
 
-        val pageRequest = PageRequest.of(
-            pageable.pageNumber,
-            pageable.pageSize,
-            criteria.sortMode.toSort(),
-        )
+            val pageRequest = PageRequest.of(
+                pageable.pageNumber,
+                pageable.pageSize,
+                criteria.sortMode.toSort(),
+            )
 
-        val page = routeRepository.findAll(routeSpecification(criteria), pageRequest)
+            val page = routeRepository.findAll(routeSpecification(criteria), pageRequest)
 
-        return RoutesResponse(
-            routes = page.content.map { route ->
-                RouteOption(
-                    routeId = route.routeId,
-                    from = route.fromCity,
-                    to = route.toCity,
-                    date = route.travelDate,
-                    fromTerminal = route.fromTerminal,
-                    toTerminal = route.toTerminal,
-                    trainId = route.trainId,
-                    freeSeats = route.freeSeats.coerceAtLeast(0),
-                    price = route.price,
-                )
-            }
-        )
+            RoutesResponse(
+                routes = page.content.map { route ->
+                    RouteOption(
+                        routeId = route.routeId,
+                        from = route.fromCity,
+                        to = route.toCity,
+                        date = route.travelDate,
+                        fromTerminal = route.fromTerminal,
+                        toTerminal = route.toTerminal,
+                        trainId = route.trainId,
+                        freeSeats = route.freeSeats.coerceAtLeast(0),
+                        price = route.price,
+                    )
+                }
+            )
+        } ?: throw IllegalStateException("Transaction returned null")
     }
 
     @PreAuthorize("hasAuthority('ORDER_CREATE')")
-    @Transactional
     fun createOrder(request: CreateOrderRequest): OrderCreatedResponse {
-        validateCreateOrderRequest(request)
+        return txTemplate.execute {
+            validateCreateOrderRequest(request)
 
-        val route = routeRepository.findByRouteIdForUpdate(request.routeId)
-            ?: throw NotFoundException(
-                resource = NotFoundError.Resource.ROUTE,
-                message = "Route not found.",
+            val route = routeRepository.findByRouteIdForUpdate(request.routeId)
+                ?: throw NotFoundException(
+                    resource = NotFoundError.Resource.ROUTE,
+                    message = "Route not found.",
+                )
+
+            if (route.freeSeats <= 0 || route.reservedSeats >= route.capacity) {
+                throw ConflictException(
+                    code = ConflictError.Code.SEAT_TAKEN,
+                    message = "Selected seat is already booked.",
+                )
+            }
+
+            val seatTaken = orderRepository.existsByRouteRouteIdAndSeatAndStatusIn(
+                routeId = route.routeId,
+                seat = request.seat,
+                statuses = listOf(OrderStatus.CREATED, OrderStatus.PENDING_3DS, OrderStatus.PAID),
             )
+            if (seatTaken) {
+                throw ConflictException(
+                    code = ConflictError.Code.SEAT_TAKEN,
+                    message = "Selected seat is already booked.",
+                )
+            }
 
-        if (route.freeSeats <= 0 || route.reservedSeats >= route.capacity) {
-            throw ConflictException(
-                code = ConflictError.Code.SEAT_TAKEN,
-                message = "Selected seat is already booked.",
+            route.reservedSeats += 1
+            route.freeSeats = (route.freeSeats - 1).coerceAtLeast(0)
+            routeRepository.save(route)
+
+            val order = OrderEntity(
+                orderId = nextOrderId(),
+                route = route,
+                seat = request.seat,
+                passportId = request.passenger.passportId,
+                fullName = request.passenger.fullName,
+                amount = route.price,
+                status = OrderStatus.CREATED,
             )
-        }
+            orderRepository.save(order)
 
-        val seatTaken = orderRepository.existsByRouteRouteIdAndSeatAndStatusIn(
-            routeId = route.routeId,
-            seat = request.seat,
-            statuses = listOf(OrderStatus.CREATED, OrderStatus.PENDING_3DS, OrderStatus.PAID),
-        )
-        if (seatTaken) {
-            throw ConflictException(
-                code = ConflictError.Code.SEAT_TAKEN,
-                message = "Selected seat is already booked.",
+            OrderCreatedResponse(
+                orderId = order.orderId,
+                status = OrderCreatedResponse.Status.CREATED,
+                amount = order.amount,
             )
-        }
-
-        route.reservedSeats += 1
-        route.freeSeats = (route.freeSeats - 1).coerceAtLeast(0)
-        routeRepository.save(route)
-
-        val order = OrderEntity(
-            orderId = nextOrderId(),
-            route = route,
-            seat = request.seat,
-            passportId = request.passenger.passportId,
-            fullName = request.passenger.fullName,
-            amount = route.price,
-            status = OrderStatus.CREATED,
-        )
-        orderRepository.save(order)
-
-        return OrderCreatedResponse(
-            orderId = order.orderId,
-            status = OrderCreatedResponse.Status.CREATED,
-            amount = order.amount,
-        )
+        } ?: throw IllegalStateException("Transaction returned null")
     }
 
     @PreAuthorize("hasAuthority('ORDER_PAY')")
-    @Transactional(noRollbackFor = [PaymentDeclinedException::class, IntegrationUnavailableException::class])
     fun payOrder(orderId: String, request: PayOrderRequest): Any {
-        validatePayOrderRequest(request)
+        return noRollbackForPaymentDeclinedTxTemplate.execute { status ->
+            try {
+                validatePayOrderRequest(request)
 
-        val order = orderRepository.findByOrderIdForUpdate(orderId)
-            ?: throw NotFoundException(
-                resource = NotFoundError.Resource.ORDER,
-                message = "Order not found.",
-            )
+                val order = orderRepository.findByOrderIdForUpdate(orderId)
+                    ?: throw NotFoundException(
+                        resource = NotFoundError.Resource.ORDER,
+                        message = "Order not found.",
+                    )
 
-        if (order.status != OrderStatus.CREATED) {
-            throw ConflictException(
-                code = ConflictError.Code.ORDER_STATE_INVALID,
-                message = "Order is not in payable state.",
-            )
-        }
+                if (order.status != OrderStatus.CREATED) {
+                    throw ConflictException(
+                        code = ConflictError.Code.ORDER_STATE_INVALID,
+                        message = "Order is not in payable state.",
+                    )
+                }
 
-        return processPayment(order, request)
+                processPayment(order, request)
+            } catch (ex: PaymentDeclinedException) {
+                // не помечаем rollback, изменения должны зафиксироваться
+                throw ex
+            } catch (ex: Exception) {
+                status.setRollbackOnly()
+                throw ex
+            }
+        } ?: throw IllegalStateException("Transaction returned null")
     }
 
     @PreAuthorize("hasAuthority('ORDER_PAY')")
-    @Transactional(noRollbackFor = [PaymentDeclinedException::class, IntegrationUnavailableException::class])
     fun confirm3ds(orderId: String, request: Confirm3dsRequest): PayOrderSuccessResponse {
+        return noRollbackForPaymentDeclinedTxTemplate.execute { status ->
+            try {
+                validateConfirm3dsRequest(request)
 
-        validateConfirm3dsRequest(request)
+                val order = orderRepository.findByOrderIdForUpdate(orderId)
+                    ?: throw NotFoundException(
+                        resource = NotFoundError.Resource.ORDER,
+                        message = "Order not found.",
+                    )
 
-        val order = orderRepository.findByOrderIdForUpdate(orderId)
-            ?: throw NotFoundException(
-                resource = NotFoundError.Resource.ORDER,
-                message = "Order not found.",
-            )
+                if (order.status != OrderStatus.PENDING_3DS) {
+                    throw ConflictException(
+                        code = ConflictError.Code.ORDER_STATE_INVALID,
+                        message = "Order is not waiting for 3DS confirmation.",
+                    )
+                }
 
-        if (order.status != OrderStatus.PENDING_3DS) {
-            throw ConflictException(
-                code = ConflictError.Code.ORDER_STATE_INVALID,
-                message = "Order is not waiting for 3DS confirmation.",
-            )
-        }
+                val paymentId = order.bankPaymentId
+                    ?: throw ConflictException(
+                        code = ConflictError.Code.ORDER_STATE_INVALID,
+                        message = "Bank payment id is missing.",
+                    )
 
-        val paymentId = order.bankPaymentId
-            ?: throw ConflictException(
-                code = ConflictError.Code.ORDER_STATE_INVALID,
-                message = "Bank payment id is missing.",
-            )
+                val bankResult = try {
+                    bankGateway.confirm3ds(paymentId = paymentId, code = request.code)
+                } catch (_: IntegrationUnavailableException) {
+                    declineOrder(order, "BANK_UNAVAILABLE")
+                }
 
-        val bankResult = try {
-            bankGateway.confirm3ds(paymentId = paymentId, code = request.code)
-        } catch (_: IntegrationUnavailableException) {
-            terminateProcessDueToBankUnavailable(order)
-        }
-        return when (bankResult.status) {
-            BankPayDecision.Status.SUCCESS -> issueTicket(order)
-            BankPayDecision.Status.DECLINED -> declineOrder(order, bankResult.reason)
-            BankPayDecision.Status.REQUIRES_3DS -> throw ConflictException(
-                code = ConflictError.Code.ORDER_STATE_INVALID,
-                message = "3DS confirmation is still pending.",
-            )
-        }
+                when (bankResult.status) {
+                    BankPayDecision.Status.SUCCESS -> issueTicket(order)
+                    BankPayDecision.Status.DECLINED -> declineOrder(order, bankResult.reason)
+                    BankPayDecision.Status.REQUIRES_3DS -> throw ConflictException(
+                        code = ConflictError.Code.ORDER_STATE_INVALID,
+                        message = "3DS confirmation is still pending.",
+                    )
+                }
+            } catch (ex: PaymentDeclinedException) {
+                throw ex
+            } catch (ex: Exception) {
+                status.setRollbackOnly()
+                throw ex
+            }
+        } ?: throw IllegalStateException("Transaction returned null")
     }
 
     @PreAuthorize("hasAuthority('TICKET_VIEW')")
-    @Transactional(readOnly = true)
     fun getTicket(ticketId: String): Ticket {
-        val ticket = ticketRepository.findById(ticketId).orElseThrow {
-            NotFoundException(
-                resource = NotFoundError.Resource.TICKET,
-                message = "Ticket not found.",
-            )
-        }
-
-        return Ticket(
-            ticketId = ticket.ticketId,
-            from = ticket.route.fromCity,
-            to = ticket.route.toCity,
-            date = ticket.route.travelDate,
-            trainId = ticket.route.trainId,
-            seat = ticket.seat,
-            passenger = Passenger(
-                passportId = ticket.passportId,
-                fullName = ticket.fullName,
-            ),
-        )
-    }
-
-    @PreAuthorize("hasAuthority('ORDER_MANAGE')")
-    @Transactional(readOnly = true)
-    fun getOrderForManage(orderId: String): ManagedOrderResponse {
-        val order = orderRepository.findById(orderId).orElseThrow {
-            NotFoundException(
-                resource = NotFoundError.Resource.ORDER,
-                message = "Order not found.",
-            )
-        }
-
-        return ManagedOrderResponse(
-            orderId = order.orderId,
-            routeId = order.route.routeId,
-            seat = order.seat,
-            amount = order.amount,
-            status = toManagedOrderStatus(order.status),
-            bankPaymentId = order.bankPaymentId,
-            ticketId = order.ticketId,
-            passenger = Passenger(
-                passportId = order.passportId,
-                fullName = order.fullName,
-            ),
-        )
-    }
-
-    @PreAuthorize("hasAuthority('ORDER_MANAGE')")
-    @Transactional
-    fun cancelOrder(orderId: String): CancelOrderResponse {
-        val order = orderRepository.findByOrderIdForUpdate(orderId)
-            ?: throw NotFoundException(
-                resource = NotFoundError.Resource.ORDER,
-                message = "Order not found.",
-            )
-
-        when (order.status) {
-            OrderStatus.CREATED,
-            OrderStatus.PENDING_3DS,
-                -> {
-                releaseReservedSeat(order)
-                order.status = OrderStatus.CANCELLED
-                order.bankPaymentId = null
-                orderRepository.save(order)
+        return readOnlyTxTemplate.execute {
+            val ticket = ticketRepository.findById(ticketId).orElseThrow {
+                NotFoundException(
+                    resource = NotFoundError.Resource.TICKET,
+                    message = "Ticket not found.",
+                )
             }
 
-            OrderStatus.PAID -> throw ConflictException(
-                code = ConflictError.Code.ORDER_STATE_INVALID,
-                message = "Paid order cannot be cancelled in this flow.",
+            Ticket(
+                ticketId = ticket.ticketId,
+                from = ticket.route.fromCity,
+                to = ticket.route.toCity,
+                date = ticket.route.travelDate,
+                trainId = ticket.route.trainId,
+                seat = ticket.seat,
+                passenger = Passenger(
+                    passportId = ticket.passportId,
+                    fullName = ticket.fullName,
+                ),
             )
-
-            OrderStatus.DECLINED,
-            OrderStatus.CANCELLED,
-                -> throw ConflictException(
-                code = ConflictError.Code.ORDER_STATE_INVALID,
-                message = "Order is already inactive.",
-            )
-        }
-
-        return CancelOrderResponse(
-            orderId = order.orderId,
-            status = CancelOrderResponse.Status.CANCELLED,
-        )
+        } ?: throw IllegalStateException("Transaction returned null")
     }
 
     @PreAuthorize("hasAuthority('ORDER_MANAGE')")
-    @Transactional(noRollbackFor = [PaymentDeclinedException::class, IntegrationUnavailableException::class])
+    fun getOrderForManage(orderId: String): ManagedOrderResponse {
+        return readOnlyTxTemplate.execute {
+            val order = orderRepository.findById(orderId).orElseThrow {
+                NotFoundException(
+                    resource = NotFoundError.Resource.ORDER,
+                    message = "Order not found.",
+                )
+            }
+
+            ManagedOrderResponse(
+                orderId = order.orderId,
+                routeId = order.route.routeId,
+                seat = order.seat,
+                amount = order.amount,
+                status = toManagedOrderStatus(order.status),
+                bankPaymentId = order.bankPaymentId,
+                ticketId = order.ticketId,
+                passenger = Passenger(
+                    passportId = order.passportId,
+                    fullName = order.fullName,
+                ),
+            )
+        } ?: throw IllegalStateException("Transaction returned null")
+    }
+
+    @PreAuthorize("hasAuthority('ORDER_MANAGE')")
+    fun cancelOrder(orderId: String): CancelOrderResponse {
+        return txTemplate.execute {
+            val order = orderRepository.findByOrderIdForUpdate(orderId)
+                ?: throw NotFoundException(
+                    resource = NotFoundError.Resource.ORDER,
+                    message = "Order not found.",
+                )
+
+            when (order.status) {
+                OrderStatus.CREATED,
+                OrderStatus.PENDING_3DS,
+                    -> {
+                    releaseReservedSeat(order)
+                    order.status = OrderStatus.CANCELLED
+                    order.bankPaymentId = null
+                    orderRepository.save(order)
+                }
+
+                OrderStatus.PAID -> throw ConflictException(
+                    code = ConflictError.Code.ORDER_STATE_INVALID,
+                    message = "Paid order cannot be cancelled in this flow.",
+                )
+
+                OrderStatus.DECLINED,
+                OrderStatus.CANCELLED,
+                    -> throw ConflictException(
+                    code = ConflictError.Code.ORDER_STATE_INVALID,
+                    message = "Order is already inactive.",
+                )
+            }
+
+            CancelOrderResponse(
+                orderId = order.orderId,
+                status = CancelOrderResponse.Status.CANCELLED,
+            )
+        } ?: throw IllegalStateException("Transaction returned null")
+    }
+
+    @PreAuthorize("hasAuthority('ORDER_MANAGE')")
     fun retryPayment(orderId: String, request: PayOrderRequest): Any {
-        validatePayOrderRequest(request)
+        return noRollbackForPaymentDeclinedTxTemplate.execute { status ->
+            try {
+                validatePayOrderRequest(request)
 
-        val order = orderRepository.findByOrderIdForUpdate(orderId)
-            ?: throw NotFoundException(
-                resource = NotFoundError.Resource.ORDER,
-                message = "Order not found.",
-            )
+                val order = orderRepository.findByOrderIdForUpdate(orderId)
+                    ?: throw NotFoundException(
+                        resource = NotFoundError.Resource.ORDER,
+                        message = "Order not found.",
+                    )
 
-        when (order.status) {
-            OrderStatus.DECLINED -> reactivateDeclinedOrderForRetry(order)
-            OrderStatus.CREATED -> {}
-            OrderStatus.PENDING_3DS -> throw ConflictException(
-                code = ConflictError.Code.ORDER_STATE_INVALID,
-                message = "Order is already waiting for 3DS confirmation.",
-            )
+                when (order.status) {
+                    OrderStatus.DECLINED -> reactivateDeclinedOrderForRetry(order)
+                    OrderStatus.CREATED -> {}
+                    OrderStatus.PENDING_3DS -> throw ConflictException(
+                        code = ConflictError.Code.ORDER_STATE_INVALID,
+                        message = "Order is already waiting for 3DS confirmation.",
+                    )
 
-            OrderStatus.PAID -> throw ConflictException(
-                code = ConflictError.Code.ORDER_STATE_INVALID,
-                message = "Order is already paid.",
-            )
+                    OrderStatus.PAID -> throw ConflictException(
+                        code = ConflictError.Code.ORDER_STATE_INVALID,
+                        message = "Order is already paid.",
+                    )
 
-            OrderStatus.CANCELLED -> throw ConflictException(
-                code = ConflictError.Code.ORDER_STATE_INVALID,
-                message = "Cancelled order cannot be retried.",
-            )
-        }
+                    OrderStatus.CANCELLED -> throw ConflictException(
+                        code = ConflictError.Code.ORDER_STATE_INVALID,
+                        message = "Cancelled order cannot be retried.",
+                    )
+                }
 
-        return processPayment(order, request)
+                processPayment(order, request)
+            } catch (ex: PaymentDeclinedException) {
+                throw ex
+            } catch (ex: Exception) {
+                status.setRollbackOnly()
+                throw ex
+            }
+        } ?: throw IllegalStateException("Transaction returned null")
     }
 
     @PreAuthorize("hasAuthority('ROUTE_MANAGE')")
-    @Transactional
     fun updateRouteForManage(routeId: String, request: UpdateRouteManageRequest): ManagedRouteResponse {
-        val route = routeRepository.findByRouteIdForUpdate(routeId)
-            ?: throw NotFoundException(
-                resource = NotFoundError.Resource.ROUTE,
-                message = "Route not found.",
-            )
+        return txTemplate.execute {
+            val route = routeRepository.findByRouteIdForUpdate(routeId)
+                ?: throw NotFoundException(
+                    resource = NotFoundError.Resource.ROUTE,
+                    message = "Route not found.",
+                )
 
-        val details = mutableListOf<ValidationDetail>()
+            val details = mutableListOf<ValidationDetail>()
 
-        if (
-            request.from == null &&
-            request.to == null &&
-            request.date == null &&
-            request.fromTerminal == null &&
-            request.toTerminal == null &&
-            request.trainId == null &&
-            request.departureTime == null &&
-            request.price == null &&
-            request.capacity == null &&
-            request.freeSeats == null
-        ) {
-            details += ValidationDetail("request", "at least one field must be provided")
-        }
-
-        var newFrom = route.fromCity
-        var newTo = route.toCity
-        var newDate = route.travelDate
-        var newFromTerminal = route.fromTerminal
-        var newToTerminal = route.toTerminal
-        var newTrainId = route.trainId
-        var newDepartureTime = route.departureTime
-        var newPrice = route.price
-        var newCapacity = route.capacity
-        var newFreeSeats = route.freeSeats
-        var freeSeatsExplicitlySet = false
-
-        request.from?.let {
-            if (it.isBlank()) {
-                details += ValidationDetail("from", "must not be blank")
-            } else {
-                newFrom = it.trim()
+            if (
+                request.from == null &&
+                request.to == null &&
+                request.date == null &&
+                request.fromTerminal == null &&
+                request.toTerminal == null &&
+                request.trainId == null &&
+                request.departureTime == null &&
+                request.price == null &&
+                request.capacity == null &&
+                request.freeSeats == null
+            ) {
+                details += ValidationDetail("request", "at least one field must be provided")
             }
-        }
-        request.to?.let {
-            if (it.isBlank()) {
-                details += ValidationDetail("to", "must not be blank")
-            } else {
-                newTo = it.trim()
-            }
-        }
-        request.date?.let {
-            runCatching { LocalDate.parse(it) }
-                .onSuccess { parsedDate -> newDate = parsedDate }
-                .onFailure { details += ValidationDetail("date", "must be in YYYY-MM-DD format") }
-        }
-        request.fromTerminal?.let { newFromTerminal = it.ifBlank { null } }
-        request.toTerminal?.let { newToTerminal = it.ifBlank { null } }
-        request.trainId?.let {
-            if (it.isBlank()) {
-                details += ValidationDetail("trainId", "must not be blank")
-            } else {
-                newTrainId = it.trim()
-            }
-        }
-        request.departureTime?.let {
-            runCatching { LocalTime.parse(it) }
-                .onSuccess { parsedTime -> newDepartureTime = parsedTime }
-                .onFailure {
-                    details += ValidationDetail(
-                        "departure_time",
-                        "must be in HH:mm or HH:mm:ss format",
-                    )
+
+            var newFrom = route.fromCity
+            var newTo = route.toCity
+            var newDate = route.travelDate
+            var newFromTerminal = route.fromTerminal
+            var newToTerminal = route.toTerminal
+            var newTrainId = route.trainId
+            var newDepartureTime = route.departureTime
+            var newPrice = route.price
+            var newCapacity = route.capacity
+            var newFreeSeats = route.freeSeats
+            var freeSeatsExplicitlySet = false
+
+            request.from?.let {
+                if (it.isBlank()) {
+                    details += ValidationDetail("from", "must not be blank")
+                } else {
+                    newFrom = it.trim()
                 }
-        }
-        request.price?.let {
-            if (it < 0) {
-                details += ValidationDetail("price", "must be >= 0")
-            } else {
-                newPrice = it
             }
-        }
-        request.capacity?.let {
-            if (it < 0) {
-                details += ValidationDetail("capacity", "must be >= 0")
-            } else {
-                newCapacity = it
+            request.to?.let {
+                if (it.isBlank()) {
+                    details += ValidationDetail("to", "must not be blank")
+                } else {
+                    newTo = it.trim()
+                }
             }
-        }
-        request.freeSeats?.let {
-            freeSeatsExplicitlySet = true
-            if (it < 0) {
-                details += ValidationDetail("free_seats", "must be >= 0")
-            } else {
-                newFreeSeats = it
+            request.date?.let {
+                runCatching { LocalDate.parse(it) }
+                    .onSuccess { parsedDate -> newDate = parsedDate }
+                    .onFailure { details += ValidationDetail("date", "must be in YYYY-MM-DD format") }
             }
-        }
+            request.fromTerminal?.let { newFromTerminal = it.ifBlank { null } }
+            request.toTerminal?.let { newToTerminal = it.ifBlank { null } }
+            request.trainId?.let {
+                if (it.isBlank()) {
+                    details += ValidationDetail("trainId", "must not be blank")
+                } else {
+                    newTrainId = it.trim()
+                }
+            }
+            request.departureTime?.let {
+                runCatching { LocalTime.parse(it) }
+                    .onSuccess { parsedTime -> newDepartureTime = parsedTime }
+                    .onFailure {
+                        details += ValidationDetail(
+                            "departure_time",
+                            "must be in HH:mm or HH:mm:ss format",
+                        )
+                    }
+            }
+            request.price?.let {
+                if (it < 0) {
+                    details += ValidationDetail("price", "must be >= 0")
+                } else {
+                    newPrice = it
+                }
+            }
+            request.capacity?.let {
+                if (it < 0) {
+                    details += ValidationDetail("capacity", "must be >= 0")
+                } else {
+                    newCapacity = it
+                }
+            }
+            request.freeSeats?.let {
+                freeSeatsExplicitlySet = true
+                if (it < 0) {
+                    details += ValidationDetail("free_seats", "must be >= 0")
+                } else {
+                    newFreeSeats = it
+                }
+            }
 
-        if (!freeSeatsExplicitlySet && request.capacity != null) {
-            newFreeSeats = (newCapacity - route.reservedSeats).coerceAtLeast(0)
-        }
+            if (!freeSeatsExplicitlySet && request.capacity != null) {
+                newFreeSeats = (newCapacity - route.reservedSeats).coerceAtLeast(0)
+            }
 
-        if (newCapacity < route.reservedSeats) {
-            details += ValidationDetail(
-                "capacity",
-                "must be >= reserved_seats (${route.reservedSeats})",
+            if (newCapacity < route.reservedSeats) {
+                details += ValidationDetail(
+                    "capacity",
+                    "must be >= reserved_seats (${route.reservedSeats})",
+                )
+            }
+            if (newFreeSeats + route.reservedSeats > newCapacity) {
+                details += ValidationDetail(
+                    "free_seats",
+                    "reserved_seats + free_seats must be <= capacity",
+                )
+            }
+
+            if (details.isNotEmpty()) {
+                throw ValidationException(details = details)
+            }
+
+            route.fromCity = newFrom
+            route.toCity = newTo
+            route.travelDate = newDate
+            route.fromTerminal = newFromTerminal
+            route.toTerminal = newToTerminal
+            route.trainId = newTrainId
+            route.departureTime = newDepartureTime
+            route.price = newPrice
+            route.capacity = newCapacity
+            route.freeSeats = newFreeSeats
+            routeRepository.save(route)
+
+            ManagedRouteResponse(
+                routeId = route.routeId,
+                from = route.fromCity,
+                to = route.toCity,
+                date = route.travelDate,
+                fromTerminal = route.fromTerminal,
+                toTerminal = route.toTerminal,
+                trainId = route.trainId,
+                departureTime = route.departureTime.toString(),
+                price = route.price,
+                capacity = route.capacity,
+                reservedSeats = route.reservedSeats,
+                freeSeats = route.freeSeats,
             )
-        }
-        if (newFreeSeats + route.reservedSeats > newCapacity) {
-            details += ValidationDetail(
-                "free_seats",
-                "reserved_seats + free_seats must be <= capacity",
-            )
-        }
-
-        if (details.isNotEmpty()) {
-            throw ValidationException(details = details)
-        }
-
-        route.fromCity = newFrom
-        route.toCity = newTo
-        route.travelDate = newDate
-        route.fromTerminal = newFromTerminal
-        route.toTerminal = newToTerminal
-        route.trainId = newTrainId
-        route.departureTime = newDepartureTime
-        route.price = newPrice
-        route.capacity = newCapacity
-        route.freeSeats = newFreeSeats
-        routeRepository.save(route)
-
-        return ManagedRouteResponse(
-            routeId = route.routeId,
-            from = route.fromCity,
-            to = route.toCity,
-            date = route.travelDate,
-            fromTerminal = route.fromTerminal,
-            toTerminal = route.toTerminal,
-            trainId = route.trainId,
-            departureTime = route.departureTime.toString(),
-            price = route.price,
-            capacity = route.capacity,
-            reservedSeats = route.reservedSeats,
-            freeSeats = route.freeSeats,
-        )
+        } ?: throw IllegalStateException("Transaction returned null")
     }
 
-    @Transactional
-    fun processPayment(order: OrderEntity, request: PayOrderRequest): Any {
+    private fun processPayment(order: OrderEntity, request: PayOrderRequest): Any {
         val bankResult = try {
             bankGateway.authorize(amount = order.amount, request = request)
         } catch (_: IntegrationUnavailableException) {
-            terminateProcessDueToBankUnavailable(order)
+            declineOrder(order, "BANK_UNAVAILABLE")
         }
 
         return when (bankResult.status) {
@@ -550,21 +588,6 @@ class TicketProcessService(
 
         throw PaymentDeclinedException(
             "Payment was declined by the bank${reason?.let { ": $it" } ?: "."}",
-        )
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    fun terminateProcessDueToBankUnavailable(order: OrderEntity): Nothing {
-        try {
-            releaseReservedSeat(order)
-            order.status = OrderStatus.DECLINED
-            order.bankPaymentId = null
-            orderRepository.save(order)
-        }catch (_ : RuntimeException) {
-            throw DataBaseUnavailableException("Database unavailable")
-        }
-        throw IntegrationUnavailableException(
-            "Bank is unavailable. Payment process was terminated.",
         )
     }
 
@@ -712,7 +735,6 @@ class TicketProcessService(
             OrderStatus.CANCELLED -> ManagedOrderResponse.Status.CANCELLED
         }
     }
-
 
     private fun nextOrderId(): String = "o${UUID.randomUUID().toString().replace("-", "").take(12)}"
 
