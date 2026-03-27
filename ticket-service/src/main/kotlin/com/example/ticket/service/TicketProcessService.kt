@@ -204,29 +204,31 @@ class TicketProcessService(
 
     @PreAuthorize("hasAuthority('ORDER_PAY')")
     fun confirm3ds(orderId: String, request: Confirm3dsRequest): PayOrderSuccessResponse {
-        return noRollbackForPaymentDeclinedTxTemplate.execute { status ->
+        var declined: PaymentDeclinedException? = null
+
+        val result = txTemplate.execute {
+            validateConfirm3dsRequest(request)
+
+            val order = orderRepository.findByOrderIdForUpdate(orderId)
+                ?: throw NotFoundException(
+                    resource = NotFoundError.Resource.ORDER,
+                    message = "Order not found.",
+                )
+
+            if (order.status != OrderStatus.PENDING_3DS) {
+                throw ConflictException(
+                    code = ConflictError.Code.ORDER_STATE_INVALID,
+                    message = "Order is not waiting for 3DS confirmation.",
+                )
+            }
+
+            val paymentId = order.bankPaymentId
+                ?: throw ConflictException(
+                    code = ConflictError.Code.ORDER_STATE_INVALID,
+                    message = "Bank payment id is missing.",
+                )
+
             try {
-                validateConfirm3dsRequest(request)
-
-                val order = orderRepository.findByOrderIdForUpdate(orderId)
-                    ?: throw NotFoundException(
-                        resource = NotFoundError.Resource.ORDER,
-                        message = "Order not found.",
-                    )
-
-                if (order.status != OrderStatus.PENDING_3DS) {
-                    throw ConflictException(
-                        code = ConflictError.Code.ORDER_STATE_INVALID,
-                        message = "Order is not waiting for 3DS confirmation.",
-                    )
-                }
-
-                val paymentId = order.bankPaymentId
-                    ?: throw ConflictException(
-                        code = ConflictError.Code.ORDER_STATE_INVALID,
-                        message = "Bank payment id is missing.",
-                    )
-
                 val bankResult = try {
                     bankGateway.confirm3ds(paymentId = paymentId, code = request.code)
                 } catch (_: IntegrationUnavailableException) {
@@ -242,12 +244,16 @@ class TicketProcessService(
                     )
                 }
             } catch (ex: PaymentDeclinedException) {
-                throw ex
-            } catch (ex: Exception) {
-                status.setRollbackOnly()
-                throw ex
+                declined = ex
+                null
             }
-        } ?: throw IllegalStateException("Transaction returned null")
+        }
+
+        declined?.let { throw it }
+
+        @Suppress("UNCHECKED_CAST")
+        return result as? PayOrderSuccessResponse
+            ?: throw IllegalStateException("Transaction returned null")
     }
 
     @PreAuthorize("hasAuthority('TICKET_VIEW')")
