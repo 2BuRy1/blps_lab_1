@@ -20,6 +20,8 @@ import com.example.ticket.api.ValidationDetail
 import com.example.ticket.client.BankGateway
 import com.example.ticket.client.BankPayDecision
 import com.example.ticket.exception.ConflictException
+import com.example.ticket.exception.BankUnavailableAfterCompensationException
+import com.example.ticket.exception.CommittedPaymentFailureException
 import com.example.ticket.exception.IntegrationUnavailableException
 import com.example.ticket.exception.NotFoundException
 import com.example.ticket.exception.PaymentDeclinedException
@@ -52,7 +54,7 @@ class TicketProcessService(
     private val ticketRepository: TicketRepository,
     private val bankGateway: BankGateway,
     private val routeSearchValidator: RouteSearchValidator,
-    transactionManager: PlatformTransactionManager,
+    private val transactionManager: PlatformTransactionManager,
 ) {
 
     private val txTemplate = TransactionTemplate(transactionManager)
@@ -174,7 +176,9 @@ class TicketProcessService(
 
     @PreAuthorize("hasAuthority('ORDER_PAY')")
     fun payOrder(orderId: String, request: PayOrderRequest): Any {
-        return noRollbackForPaymentDeclinedTxTemplate.execute { status ->
+        var committedFailure: CommittedPaymentFailureException? = null
+
+        val result = noRollbackForPaymentDeclinedTxTemplate.execute { status ->
             try {
                 validatePayOrderRequest(request)
 
@@ -192,47 +196,51 @@ class TicketProcessService(
                 }
 
                 processPayment(order, request)
-            } catch (ex: PaymentDeclinedException) {
-                // не помечаем rollback, изменения должны зафиксироваться
-                throw ex
+            } catch (ex: CommittedPaymentFailureException) {
+                committedFailure = ex
+                null
             } catch (ex: Exception) {
                 status.setRollbackOnly()
                 throw ex
             }
-        } ?: throw IllegalStateException("Transaction returned null")
+        }
+
+        committedFailure?.let { throw it }
+
+        return result ?: throw IllegalStateException("Transaction returned null")
     }
 
     @PreAuthorize("hasAuthority('ORDER_PAY')")
     fun confirm3ds(orderId: String, request: Confirm3dsRequest): PayOrderSuccessResponse {
-        var declined: PaymentDeclinedException? = null
+        var committedFailure: CommittedPaymentFailureException? = null
 
-        val result = txTemplate.execute {
-            validateConfirm3dsRequest(request)
-
-            val order = orderRepository.findByOrderIdForUpdate(orderId)
-                ?: throw NotFoundException(
-                    resource = NotFoundError.Resource.ORDER,
-                    message = "Order not found.",
-                )
-
-            if (order.status != OrderStatus.PENDING_3DS) {
-                throw ConflictException(
-                    code = ConflictError.Code.ORDER_STATE_INVALID,
-                    message = "Order is not waiting for 3DS confirmation.",
-                )
-            }
-
-            val paymentId = order.bankPaymentId
-                ?: throw ConflictException(
-                    code = ConflictError.Code.ORDER_STATE_INVALID,
-                    message = "Bank payment id is missing.",
-                )
-
+        val result = txTemplate.execute { status ->
             try {
+                validateConfirm3dsRequest(request)
+
+                val order = orderRepository.findByOrderIdForUpdate(orderId)
+                    ?: throw NotFoundException(
+                        resource = NotFoundError.Resource.ORDER,
+                        message = "Order not found.",
+                    )
+
+                if (order.status != OrderStatus.PENDING_3DS) {
+                    throw ConflictException(
+                        code = ConflictError.Code.ORDER_STATE_INVALID,
+                        message = "Order is not waiting for 3DS confirmation.",
+                    )
+                }
+
+                val paymentId = order.bankPaymentId
+                    ?: throw ConflictException(
+                        code = ConflictError.Code.ORDER_STATE_INVALID,
+                        message = "Bank payment id is missing.",
+                    )
+
                 val bankResult = try {
                     bankGateway.confirm3ds(paymentId = paymentId, code = request.code)
                 } catch (_: IntegrationUnavailableException) {
-                    declineOrder(order, "BANK_UNAVAILABLE")
+                    declineOrderBecauseBankUnavailable(order)
                 }
 
                 when (bankResult.status) {
@@ -243,13 +251,16 @@ class TicketProcessService(
                         message = "3DS confirmation is still pending.",
                     )
                 }
-            } catch (ex: PaymentDeclinedException) {
-                declined = ex
+            } catch (ex: CommittedPaymentFailureException) {
+                committedFailure = ex
                 null
+            } catch (ex: Exception) {
+                status.setRollbackOnly()
+                throw ex
             }
         }
 
-        declined?.let { throw it }
+        committedFailure?.let { throw it }
 
         @Suppress("UNCHECKED_CAST")
         return result as? PayOrderSuccessResponse
@@ -348,7 +359,9 @@ class TicketProcessService(
 
     @PreAuthorize("hasAuthority('ORDER_MANAGE')")
     fun retryPayment(orderId: String, request: PayOrderRequest): Any {
-        return noRollbackForPaymentDeclinedTxTemplate.execute { status ->
+        var committedFailure: CommittedPaymentFailureException? = null
+
+        val result = noRollbackForPaymentDeclinedTxTemplate.execute { status ->
             try {
                 validatePayOrderRequest(request)
 
@@ -378,13 +391,18 @@ class TicketProcessService(
                 }
 
                 processPayment(order, request)
-            } catch (ex: PaymentDeclinedException) {
-                throw ex
+            } catch (ex: CommittedPaymentFailureException) {
+                committedFailure = ex
+                null
             } catch (ex: Exception) {
                 status.setRollbackOnly()
                 throw ex
             }
-        } ?: throw IllegalStateException("Transaction returned null")
+        }
+
+        committedFailure?.let { throw it }
+
+        return result ?: throw IllegalStateException("Transaction returned null")
     }
 
     @PreAuthorize("hasAuthority('ROUTE_MANAGE')")
@@ -540,7 +558,7 @@ class TicketProcessService(
         val bankResult = try {
             bankGateway.authorize(amount = order.amount, request = request)
         } catch (_: IntegrationUnavailableException) {
-            declineOrder(order, "BANK_UNAVAILABLE")
+            declineOrderBecauseBankUnavailable(order)
         }
 
         return when (bankResult.status) {
@@ -588,13 +606,25 @@ class TicketProcessService(
     }
 
     private fun declineOrder(order: OrderEntity, reason: String?): Nothing {
-        releaseReservedSeat(order)
-        order.status = OrderStatus.DECLINED
-        orderRepository.save(order)
+        compensateDeclinedOrder(order)
 
         throw PaymentDeclinedException(
             "Payment was declined by the bank${reason?.let { ": $it" } ?: "."}",
         )
+    }
+
+    private fun declineOrderBecauseBankUnavailable(order: OrderEntity): Nothing {
+        compensateDeclinedOrder(order)
+
+        throw BankUnavailableAfterCompensationException(
+            "Bank is unavailable. Order was declined and seat released.",
+        )
+    }
+
+    private fun compensateDeclinedOrder(order: OrderEntity) {
+        releaseReservedSeat(order)
+        order.status = OrderStatus.DECLINED
+        orderRepository.save(order)
     }
 
     private fun reactivateDeclinedOrderForRetry(order: OrderEntity) {

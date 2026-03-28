@@ -4,17 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="41a9f74a-22f5-492b-b8e9-386b6e7fb110" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../bank-service/data/tx-logs/bank/tmlog-bank.lck" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankController.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankController.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankExceptionHandler.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankExceptionHandler.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../rzhd_process.bpmn" beforeDir="false" afterPath="$PROJECT_DIR$/../rzhd_process.bpmn" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/tx-logs/ticket/tmlog-ticket.lck" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/exception/GlobalExceptionHandler.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/exception/GlobalExceptionHandler.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/exception/ServiceExceptions.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/exception/ServiceExceptions.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/TicketProcessService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/TicketProcessService.kt" afterDir="false" />
-    </list>
+    <list default="true" id="41a9f74a-22f5-492b-b8e9-386b6e7fb110" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -148,6 +138,7 @@
       <workItem from="1773264736722" duration="48000" />
       <workItem from="1773421955467" duration="27019000" />
       <workItem from="1773499497342" duration="2597000" />
+      <workItem from="1774463611974" duration="17000" />
     </task>
     <servers />
   </component>

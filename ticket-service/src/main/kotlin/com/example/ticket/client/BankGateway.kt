@@ -5,6 +5,7 @@ import com.example.ticket.api.ValidationDetail
 import com.example.ticket.exception.IntegrationUnavailableException
 import com.example.ticket.exception.ValidationException
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
@@ -18,11 +19,13 @@ import java.security.MessageDigest
 class BankGateway(
     private val bankRestClient: RestClient,
     private val objectMapper: ObjectMapper,
+    @Value("\${integration.bank.username}") bankUsername: String,
+    @Value("\${integration.bank.password}") bankPassword: String,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
-    private val bankUsername = "service_bank"
-    private val bankPassword = "service123"
+    private val bankUsername = bankUsername.trim()
+    private val bankPassword = bankPassword.trim()
     private val authFingerprint = fingerprint("$bankUsername:$bankPassword")
 
     init {
@@ -39,7 +42,7 @@ class BankGateway(
         )
         var txOutcome = "UNKNOWN"
         log.info("BANK_TX_BEGIN phase=ticket_to_bank op=pay amount={}", amount)
-        log.info("BANK_OUT authorize username={} amount={}", bankUsername.trim(), amount)
+        log.info("BANK_OUT authorize username={} amount={}", bankUsername, amount)
         log.info("BANK_OUT auth_fingerprint={}", authFingerprint)
 
         return try {
@@ -82,7 +85,7 @@ class BankGateway(
         val payload = BankConfirm3dsPayload(code = code)
         var txOutcome = "UNKNOWN"
         log.info("BANK_TX_BEGIN phase=ticket_to_bank op=confirm_3ds paymentId={}", paymentId)
-        log.info("BANK_OUT confirm3ds username={} paymentId={}", bankUsername.trim(), paymentId)
+        log.info("BANK_OUT confirm3ds username={} paymentId={}", bankUsername, paymentId)
         log.info("BANK_OUT auth_fingerprint={}", authFingerprint)
 
         return try {
@@ -122,7 +125,7 @@ class BankGateway(
     }
 
     private fun applyBankAuth(headers: HttpHeaders) {
-        headers.setBasicAuth(bankUsername.trim(), bankPassword.trim())
+        headers.setBasicAuth(bankUsername, bankPassword)
         headers.accept = listOf(MediaType.APPLICATION_JSON)
     }
 

@@ -17,7 +17,7 @@ import java.util.UUID
 @Service
 class BankPaymentService(
     private val paymentAttemptRepository: PaymentAttemptRepository,
-    transactionManager: PlatformTransactionManager,
+    private val transactionManager: PlatformTransactionManager,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)

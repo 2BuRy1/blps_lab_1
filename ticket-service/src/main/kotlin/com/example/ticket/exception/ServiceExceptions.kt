@@ -19,9 +19,17 @@ class ConflictException(
     message: String,
 ) : RuntimeException(message)
 
-class PaymentDeclinedException(
+abstract class CommittedPaymentFailureException(
     message: String,
 ) : RuntimeException(message)
+
+class PaymentDeclinedException(
+    message: String,
+) : CommittedPaymentFailureException(message)
+
+class BankUnavailableAfterCompensationException(
+    message: String,
+) : CommittedPaymentFailureException(message)
 
 class IntegrationUnavailableException(
     message: String,

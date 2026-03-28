@@ -6,4 +6,5 @@
   <user username="meow" password="{bcrypt}$2a$10$wFHU8IdSvbpbsoB4d0kotuHjlnAs6bDn/OAK5py0y4/6DCH.q.ML6" roles="CLIENT"/>
   <user username="client_1773472046034" password="{bcrypt}$2a$10$kfBafJ965Mbtl7E/vEp.VeP/wFFNXby.QgdxA5ZsCBvkaST8Ik.Iy" roles="CLIENT"/>
   <user username="hello" password="{bcrypt}$2a$10$TjWeE4mOyVeMnaAdtWsVj.NOvxwFTyoWcGzrrYFUeGiyLiftT7S2e" roles="CLIENT"/>
+  <user username="hello1" password="{bcrypt}$2a$10$4qlhbW5Bdz4QVddB/rN2xuZtlzxBB9/dA5zGVnIZsWtkCfszL.r0S" roles="CLIENT"/>
 </users>

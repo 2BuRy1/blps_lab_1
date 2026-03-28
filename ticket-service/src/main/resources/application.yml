@@ -46,6 +46,8 @@ integration:
     base-url: http://localhost:8081/api/v1
     username: service_bank
     password: service123
+    connect-timeout: 2s
+    read-timeout: 5s
 
 security:
   users-xml: ${TICKET_SECURITY_USERS_XML:file:./data/ticket-users.xml}

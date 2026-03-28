@@ -47,6 +47,16 @@ class GlobalExceptionHandler {
             .body(PaymentDeclinedError(message = ex.message ?: "Payment was declined by the bank."))
     }
 
+    @ExceptionHandler(BankUnavailableAfterCompensationException::class)
+    fun handleBankUnavailableAfterCompensation(ex: BankUnavailableAfterCompensationException): ResponseEntity<IntegrationUnavailableError> {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(
+                IntegrationUnavailableError(
+                    message = ex.message ?: "Bank is unavailable. Order was declined and seat released.",
+                )
+            )
+    }
+
     @ExceptionHandler(IntegrationUnavailableException::class)
     fun handleIntegrationUnavailable(ex: IntegrationUnavailableException): ResponseEntity<IntegrationUnavailableError> {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
