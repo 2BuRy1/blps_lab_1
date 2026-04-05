@@ -43,7 +43,7 @@ spring:
 
 integration:
   bank:
-    base-url: http://localhost:8081/api/v1
+    base-url: http://localhost:8083/api/v1
     username: service_bank
     password: service123
     connect-timeout: 2s

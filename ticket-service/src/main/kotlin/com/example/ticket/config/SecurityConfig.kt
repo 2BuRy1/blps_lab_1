@@ -30,7 +30,7 @@ class SecurityConfig {
                     "/swagger-ui/**",
                     "/swagger-ui.html",
                     "/auth/register",
-                ).permitAll()
+                )
                 it.anyRequest().authenticated()
             }
             .httpBasic(Customizer.withDefaults())

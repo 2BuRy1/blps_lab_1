@@ -81,6 +81,7 @@ class TicketProcessService(
         pageable: Pageable,
     ): RoutesResponse {
         return readOnlyTxTemplate.execute {
+
             val criteria = routeSearchValidator.validateAndBuild(
                 from = from,
                 to = to,
