@@ -7,15 +7,35 @@ server:
 spring:
   application:
     name: ticket-service
+  jta:
+    enabled: true
+    transaction-manager-id: ticket-tm
+    atomikos:
+      properties:
+        transaction-manager-unique-name: ${TICKET_ATOMIKOS_TM_UNIQUE_NAME:ticket-service-tm}
+        log-base-dir: ${TICKET_ATOMIKOS_LOG_DIR:./data/tx-logs/ticket}
+        log-base-name: ${TICKET_ATOMIKOS_LOG_BASE_NAME:tmlog-ticket}
   datasource:
-    url: jdbc:postgresql://${TICKET_DB_HOST:localhost}:${TICKET_DB_PORT:5432}/${TICKET_DB_NAME:postgres}
-    driver-class-name: org.postgresql.Driver
-    username: ${TICKET_DB_USER:postgres}
-    password: ${TICKET_DB_PASSWORD:}
+    xa:
+      data-source-class-name: org.postgresql.xa.PGXADataSource
+      properties:
+        serverName: ${TICKET_DB_HOST:localhost}
+        portNumber: ${TICKET_DB_PORT:5432}
+        databaseName: ${TICKET_DB_NAME:postgres}
+        user: ${TICKET_DB_USER:postgres}
+        password: ${TICKET_DB_PASSWORD:postgres}
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     open-in-view: false
+    properties:
+      hibernate:
+        transaction:
+          coordinator_class: jta
+      jakarta:
+        persistence:
+          transactionType: JTA
   data:
     web:
       pageable:
@@ -23,7 +43,15 @@ spring:
 
 integration:
   bank:
-    base-url: ${BANK_SERVICE_BASE_URL:http://localhost:8081/api/v1}
+    base-url: http://localhost:8083/api/v1
+    username: service_bank
+    password: service123
+    connect-timeout: 2s
+    read-timeout: 5s
+
+security:
+  users-xml: ${TICKET_SECURITY_USERS_XML:file:./data/ticket-users.xml}
+  users-template: ${TICKET_SECURITY_USERS_TEMPLATE:classpath:security/users.xml}
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:*}

@@ -6,15 +6,38 @@ server:
 spring:
   application:
     name: bank-service
+  jta:
+    enabled: true
+    transaction-manager-id: bank-tm
+    atomikos:
+      properties:
+        transaction-manager-unique-name: ${BANK_ATOMIKOS_TM_UNIQUE_NAME:bank-service-tm}
+        log-base-dir: ${BANK_ATOMIKOS_LOG_DIR:./data/tx-logs/bank}
+        log-base-name: ${BANK_ATOMIKOS_LOG_BASE_NAME:tmlog-bank}
   datasource:
-    url: jdbc:postgresql://${TICKET_DB_HOST:localhost}:${BANK_DB_PORT:5432}/${TICKET_DB_NAME:postgres}
-    driver-class-name: org.postgresql.Driver
-    username: ${TICKET_DB_USER:postgres}
-    password: ${TICKET_DB_PASSWORD:}
+    xa:
+      data-source-class-name: org.postgresql.xa.PGXADataSource
+      properties:
+        serverName: ${BANK_DB_HOST:${TICKET_DB_HOST:localhost}}
+        portNumber: ${BANK_DB_PORT:5432}
+        databaseName: ${BANK_DB_NAME:${TICKET_DB_NAME:postgres}}
+        user: ${BANK_DB_USER:${TICKET_DB_USER:postgres}}
+        password: ${BANK_DB_PASSWORD:${TICKET_DB_PASSWORD:postgres}}
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     open-in-view: false
+    properties:
+      hibernate:
+        transaction:
+          coordinator_class: jta
+      jakarta:
+        persistence:
+          transactionType: JTA
+
+security:
+  users-xml: classpath:security/users.xml
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:*}

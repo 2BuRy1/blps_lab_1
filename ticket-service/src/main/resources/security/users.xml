@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<users>
+    <user username="client" password="{noop}client123" roles="CLIENT" />
+    <user username="operator" password="{noop}operator123" roles="OPERATOR" />
+    <user username="service_bank" password="{noop}service123" roles="SERVICE_BANK" />
+    <user username="admin" password="{noop}admin123" roles="ADMIN" />
+</users>

@@ -5,8 +5,10 @@ import com.example.bank.api.BankPayResponse
 import com.example.bank.api.Confirm3dsRequest
 import com.example.bank.persistence.entity.PaymentAttemptEntity
 import com.example.bank.persistence.repository.PaymentAttemptRepository
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
@@ -15,82 +17,109 @@ import java.util.UUID
 @Service
 class BankPaymentService(
     private val paymentAttemptRepository: PaymentAttemptRepository,
+    private val transactionManager: PlatformTransactionManager,
 ) {
 
+    private val log = LoggerFactory.getLogger(javaClass)
     private val expiryFormatter = DateTimeFormatter.ofPattern("MM/yy")
+    private val transactionTemplate = TransactionTemplate(transactionManager)
 
-    @Transactional
     fun pay(request: BankPayRequest): BankPayResponse {
-        validate(request)
+        var txOutcome = "UNKNOWN"
+        log.info("BANK_TX_BEGIN phase=bank op=pay amount={}", request.amount)
 
-        val response = when {
-            request.amount > 500_000 -> BankPayResponse(
-                status = BankPayResponse.Status.DECLINED,
-                reason = "INSUFFICIENT_FUNDS",
-            )
+        return try {
+            transactionTemplate.execute { _ ->
+                validate(request)
 
-            request.cvv == "000" -> BankPayResponse(
-                status = BankPayResponse.Status.DECLINED,
-                reason = "SUSPECTED_FRAUD",
-            )
+                val response = when {
+                    request.amount > 500_000 -> BankPayResponse(
+                        status = BankPayResponse.Status.DECLINED,
+                        reason = "INSUFFICIENT_FUNDS",
+                    )
 
-            request.cardNumber.endsWith("0000") -> BankPayResponse(
-                status = BankPayResponse.Status.DECLINED,
-                reason = "DECLINED_BY_ISSUER",
-            )
+                    request.cvv == "000" -> BankPayResponse(
+                        status = BankPayResponse.Status.DECLINED,
+                        reason = "SUSPECTED_FRAUD",
+                    )
 
-            request.cardNumber.endsWith("1111") -> {
-                val paymentId = "pay_${UUID.randomUUID().toString().replace("-", "").take(10)}"
-                BankPayResponse(
-                    status = BankPayResponse.Status.REQUIRES_3DS,
-                    reason = "3DS_REQUIRED",
-                    paymentId = paymentId,
-                    challengeMessage = "Confirm 3DS with code 123456",
+                    request.cardNumber.endsWith("0000") -> BankPayResponse(
+                        status = BankPayResponse.Status.DECLINED,
+                        reason = "DECLINED_BY_ISSUER",
+                    )
+
+                    request.cardNumber.endsWith("1111") -> {
+                        val paymentId = "pay_${UUID.randomUUID().toString().replace("-", "").take(10)}"
+                        BankPayResponse(
+                            status = BankPayResponse.Status.REQUIRES_3DS,
+                            reason = "3DS_REQUIRED",
+                            paymentId = paymentId,
+                            challengeMessage = "Confirm 3DS with code 123456",
+                        )
+                    }
+
+                    else -> BankPayResponse(status = BankPayResponse.Status.SUCCESS)
+                }
+
+                paymentAttemptRepository.save(
+                    PaymentAttemptEntity(
+                        amount = request.amount,
+                        paymentId = response.paymentId,
+                        cardNumberLast4 = request.cardNumber.takeLast(4),
+                        status = response.status.name,
+                        reason = response.reason,
+                        threeDsCode = if (response.status == BankPayResponse.Status.REQUIRES_3DS) "123456" else null,
+                    )
                 )
-            }
 
-            else -> BankPayResponse(status = BankPayResponse.Status.SUCCESS)
+                txOutcome = response.status.name
+                response
+            } ?: throw IllegalStateException("Transaction returned null")
+        } catch (ex: Exception) {
+            txOutcome = "ERROR_${ex.javaClass.simpleName}"
+            throw ex
+        } finally {
+            log.info("BANK_TX_END phase=bank op=pay outcome={}", txOutcome)
         }
-
-        paymentAttemptRepository.save(
-            PaymentAttemptEntity(
-                amount = request.amount,
-                paymentId = response.paymentId,
-                cardNumberLast4 = request.cardNumber.takeLast(4),
-                status = response.status.name,
-                reason = response.reason,
-                threeDsCode = if (response.status == BankPayResponse.Status.REQUIRES_3DS) "123456" else null,
-            )
-        )
-
-        return response
     }
 
-    @Transactional
     fun confirm3ds(paymentId: String, request: Confirm3dsRequest): BankPayResponse {
-        require(request.code.matches(Regex("^\\d{6}$"))) { "code must be 6 digits" }
+        var txOutcome = "UNKNOWN"
+        log.info("BANK_TX_BEGIN phase=bank op=confirm_3ds paymentId={}", paymentId)
 
-        val payment = paymentAttemptRepository.findByPaymentIdForUpdate(paymentId)
-            ?: throw PaymentNotFoundException(paymentId)
+        return try {
+            transactionTemplate.execute { _ ->
+                require(request.code.matches(Regex("^\\d{6}$"))) { "code must be 6 digits" }
 
-        require(payment.status == BankPayResponse.Status.REQUIRES_3DS.name) {
-            "payment is not waiting for 3DS confirmation"
+                val payment = paymentAttemptRepository.findByPaymentIdForUpdate(paymentId)
+                    ?: throw PaymentNotFoundException(paymentId)
+
+                require(payment.status == BankPayResponse.Status.REQUIRES_3DS.name) {
+                    "payment is not waiting for 3DS confirmation"
+                }
+
+                val response = if (payment.threeDsCode == request.code) {
+                    BankPayResponse(status = BankPayResponse.Status.SUCCESS)
+                } else {
+                    BankPayResponse(
+                        status = BankPayResponse.Status.DECLINED,
+                        reason = "3DS_FAILED",
+                    )
+                }
+
+                payment.status = response.status.name
+                payment.reason = response.reason
+                paymentAttemptRepository.save(payment)
+
+                txOutcome = response.status.name
+                response
+            } ?: throw IllegalStateException("Transaction returned null")
+        } catch (ex: Exception) {
+            txOutcome = "ERROR_${ex.javaClass.simpleName}"
+            throw ex
+        } finally {
+            log.info("BANK_TX_END phase=bank op=confirm_3ds paymentId={} outcome={}", paymentId, txOutcome)
         }
-
-        val response = if (payment.threeDsCode == request.code) {
-            BankPayResponse(status = BankPayResponse.Status.SUCCESS)
-        } else {
-            BankPayResponse(
-                status = BankPayResponse.Status.DECLINED,
-                reason = "3DS_FAILED",
-            )
-        }
-
-        payment.status = response.status.name
-        payment.reason = response.reason
-        paymentAttemptRepository.save(payment)
-
-        return response
     }
 
     private fun validate(request: BankPayRequest) {
