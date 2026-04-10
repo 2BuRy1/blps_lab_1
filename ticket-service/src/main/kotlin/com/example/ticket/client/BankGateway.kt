@@ -2,8 +2,10 @@ package com.example.ticket.client
 
 import com.example.ticket.api.PayOrderRequest
 import com.example.ticket.api.ValidationDetail
+import com.example.ticket.config.CustomKafkaProperties
 import com.example.ticket.exception.IntegrationUnavailableException
 import com.example.ticket.exception.ValidationException
+import com.example.ticket.service.ProducerService
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpHeaders
@@ -18,7 +20,9 @@ import java.security.MessageDigest
 @Component
 class BankGateway(
     private val bankRestClient: RestClient,
+    private val producerService: ProducerService,
     private val objectMapper: ObjectMapper,
+    private val customKafkaProperties: CustomKafkaProperties,
     @Value("\${integration.bank.username}") bankUsername: String,
     @Value("\${integration.bank.password}") bankPassword: String,
 ) {
@@ -33,53 +37,67 @@ class BankGateway(
         require(bankPassword.isNotBlank()) { "bank password must not be blank" }
     }
 
-    fun authorize(amount: Int, request: PayOrderRequest): BankPayDecision {
+    fun authorize(amount: Int, request: PayOrderRequest, orderId: String) {
         val payload = BankPayRequestPayload(
             amount = amount,
+            orderId = orderId,
             cardNumber = request.cardNumber,
             expirationDate = request.expirationDate,
             cvv = request.cvv,
         )
-        var txOutcome = "UNKNOWN"
-        log.info("BANK_TX_BEGIN phase=ticket_to_bank op=pay amount={}", amount)
-        log.info("BANK_OUT authorize username={} amount={}", bankUsername, amount)
-        log.info("BANK_OUT auth_fingerprint={}", authFingerprint)
-
-        return try {
-            val decision = bankRestClient.post()
-                .uri("/bank/pay")
-                .headers { headers -> applyBankAuth(headers) }
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(payload)
-                .retrieve()
-                .body(BankPayDecision::class.java)
-                ?: throw IllegalStateException("Empty bank response")
-            txOutcome = decision.status.name
-            decision
-        } catch (ex: RestClientResponseException) {
-            txOutcome = "HTTP_${ex.statusCode.value()}"
-            if (ex.statusCode.value() == 400) {
-                throw ValidationException(
-                    details = listOf(
-                        ValidationDetail(
-                            field = "payment",
-                            issue = parseBankErrorMessage(ex.responseBodyAsString),
-                        )
-                    )
-                )
-            }
-            throw IntegrationUnavailableException(
-                "Bank integration failed with HTTP ${ex.statusCode.value()}: ${ex.responseBodyAsString.take(200)}",
-            )
-        } catch (ex: Exception) {
-            txOutcome = "ERROR_${ex.javaClass.simpleName}"
-            throw IntegrationUnavailableException(
-                "Bank integration is unavailable: ${ex.javaClass.simpleName}.",
-            )
-        } finally {
-            log.info("BANK_TX_END phase=ticket_to_bank op=pay outcome={}", txOutcome)
-        }
+        producerService.send(
+            customKafkaProperties.topics.paymentRequest,
+            null,
+            objectMapper.writeValueAsString(payload)
+        )
     }
+//    fun authorize(amount: Int, request: PayOrderRequest): BankPayDecision {
+//        val payload = BankPayRequestPayload(
+//            amount = amount,
+//            cardNumber = request.cardNumber,
+//            expirationDate = request.expirationDate,
+//            cvv = request.cvv,
+//        )
+//        var txOutcome = "UNKNOWN"
+//        log.info("BANK_TX_BEGIN phase=ticket_to_bank op=pay amount={}", amount)
+//        log.info("BANK_OUT authorize username={} amount={}", bankUsername, amount)
+//        log.info("BANK_OUT auth_fingerprint={}", authFingerprint)
+//
+//        return try {
+//            val decision = bankRestClient.post()
+//                .uri("/bank/pay")
+//                .headers { headers -> applyBankAuth(headers) }
+//                .contentType(MediaType.APPLICATION_JSON)
+//                .body(payload)
+//                .retrieve()
+//                .body(BankPayDecision::class.java)
+//                ?: throw IllegalStateException("Empty bank response")
+//            txOutcome = decision.status.name
+//            decision
+//        } catch (ex: RestClientResponseException) {
+//            txOutcome = "HTTP_${ex.statusCode.value()}"
+//            if (ex.statusCode.value() == 400) {
+//                throw ValidationException(
+//                    details = listOf(
+//                        ValidationDetail(
+//                            field = "payment",
+//                            issue = parseBankErrorMessage(ex.responseBodyAsString),
+//                        )
+//                    )
+//                )
+//            }
+//            throw IntegrationUnavailableException(
+//                "Bank integration failed with HTTP ${ex.statusCode.value()}: ${ex.responseBodyAsString.take(200)}",
+//            )
+//        } catch (ex: Exception) {
+//            txOutcome = "ERROR_${ex.javaClass.simpleName}"
+//            throw IntegrationUnavailableException(
+//                "Bank integration is unavailable: ${ex.javaClass.simpleName}.",
+//            )
+//        } finally {
+//            log.info("BANK_TX_END phase=ticket_to_bank op=pay outcome={}", txOutcome)
+//        }
+//    }
 
     fun confirm3ds(paymentId: String, code: String): BankPayDecision {
         val payload = BankConfirm3dsPayload(code = code)

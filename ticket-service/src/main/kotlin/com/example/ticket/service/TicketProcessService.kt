@@ -196,7 +196,7 @@ class TicketProcessService(
                     )
                 }
 
-                processPayment(order, request)
+                processPayment(order, request, orderId)
             } catch (ex: CommittedPaymentFailureException) {
                 committedFailure = ex
                 null
@@ -391,7 +391,7 @@ class TicketProcessService(
                     )
                 }
 
-                processPayment(order, request)
+                processPayment(order, request, orderId)
             } catch (ex: CommittedPaymentFailureException) {
                 committedFailure = ex
                 null
@@ -555,38 +555,16 @@ class TicketProcessService(
         } ?: throw IllegalStateException("Transaction returned null")
     }
 
-    private fun processPayment(order: OrderEntity, request: PayOrderRequest): Any {
-        val bankResult = try {
-            bankGateway.authorize(amount = order.amount, request = request)
-        } catch (_: IntegrationUnavailableException) {
+     fun processPayment(order: OrderEntity, request: PayOrderRequest, orderId: String) {
+         try {
+            bankGateway.authorize(amount = order.amount, request = request, orderId = orderId)
+        } catch (_: Exception) {
             declineOrderBecauseBankUnavailable(order)
-        }
-
-        return when (bankResult.status) {
-            BankPayDecision.Status.SUCCESS -> issueTicket(order)
-
-            BankPayDecision.Status.REQUIRES_3DS -> {
-                val paymentId = bankResult.paymentId
-                    ?: throw IllegalStateException("Bank response missing payment_id for REQUIRES_3DS")
-
-                order.status = OrderStatus.PENDING_3DS
-                order.bankPaymentId = paymentId
-                orderRepository.save(order)
-
-                PayOrderPending3dsResponse(
-                    status = PayOrderPending3dsResponse.Status.PENDING_3DS,
-                    paymentId = paymentId,
-                    message = bankResult.challengeMessage ?: "Confirm 3DS challenge",
-                )
-            }
-
-            BankPayDecision.Status.DECLINED -> {
-                declineOrder(order, bankResult.reason)
-            }
         }
     }
 
-    private fun issueTicket(order: OrderEntity): PayOrderSuccessResponse {
+
+    fun issueTicket(order: OrderEntity): PayOrderSuccessResponse {
         val ticket = TicketEntity(
             ticketId = nextTicketId(),
             route = order.route,
@@ -606,7 +584,7 @@ class TicketProcessService(
         )
     }
 
-    private fun declineOrder(order: OrderEntity, reason: String?): Nothing {
+     fun declineOrder(order: OrderEntity, reason: String?): Nothing {
         compensateDeclinedOrder(order)
 
         throw PaymentDeclinedException(
@@ -614,7 +592,7 @@ class TicketProcessService(
         )
     }
 
-    private fun declineOrderBecauseBankUnavailable(order: OrderEntity): Nothing {
+     fun declineOrderBecauseBankUnavailable(order: OrderEntity): Nothing {
         compensateDeclinedOrder(order)
 
         throw BankUnavailableAfterCompensationException(
@@ -622,13 +600,13 @@ class TicketProcessService(
         )
     }
 
-    private fun compensateDeclinedOrder(order: OrderEntity) {
+     fun compensateDeclinedOrder(order: OrderEntity) {
         releaseReservedSeat(order)
         order.status = OrderStatus.DECLINED
         orderRepository.save(order)
     }
 
-    private fun reactivateDeclinedOrderForRetry(order: OrderEntity) {
+     fun reactivateDeclinedOrderForRetry(order: OrderEntity) {
         val route = routeRepository.findByRouteIdForUpdate(order.route.routeId)
             ?: throw NotFoundException(
                 resource = NotFoundError.Resource.ROUTE,

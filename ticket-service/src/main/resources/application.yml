@@ -43,11 +43,30 @@ spring:
 
 integration:
   bank:
-    base-url: http://localhost:8083/api/v1
+    base-url: http://localhost:8081/api/v1
     username: service_bank
     password: service123
     connect-timeout: 2s
     read-timeout: 5s
+
+kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  producer:
+    client-id: ticket-service-producer
+    acks: all
+    retries: 3
+  consumer:
+    group-id: ticket-service-group
+    auto-offset-reset: earliest
+    enable-auto-commit: false
+    poll-timeout-ms: 1000
+  topics:
+    payment-request: payment-request-topic
+    payment-result: payment-result-topic
+    ds-request: 3ds-request-topic
+    ds-result: 3ds-result-topic
+    retry-request: retry-request-topic
+    retry-response: retry-reponse-topic
 
 security:
   users-xml: ${TICKET_SECURITY_USERS_XML:file:./data/ticket-users.xml}
