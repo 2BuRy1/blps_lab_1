@@ -1,11 +1,9 @@
 package com.example.ticket.service
 
-import com.example.ticket.api.PayOrderPending3dsResponse
 import com.example.ticket.client.BankPayDecision
 import com.example.ticket.config.CustomKafkaProperties
 import com.example.ticket.persistence.entity.OrderStatus
 import com.example.ticket.persistence.repository.OrderRepository
-import com.example.ticket.persistence.repository.TicketRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import jakarta.annotation.PostConstruct
@@ -24,13 +22,12 @@ class ConsumerService(
     private val kafkaConsumer: KafkaConsumer<String, String>,
     private val kafkaProperties: CustomKafkaProperties,
     private val objectMapper: ObjectMapper,
-    val transactionManager: PlatformTransactionManager,
+    transactionManager: PlatformTransactionManager,
     private val ticketProcessService: TicketProcessService,
     private val orderRepository: OrderRepository,
 ) : DisposableBean {
 
     private val transactionTemplate = TransactionTemplate(transactionManager)
-
 
     companion object {
         private val log = LoggerFactory.getLogger(ConsumerService::class.java)
@@ -44,14 +41,11 @@ class ConsumerService(
             listOf(
                 kafkaProperties.topics.paymentResult,
                 kafkaProperties.topics.retryResponse,
-                kafkaProperties.topics.dsResult
-            )
+                kafkaProperties.topics.dsResult,
+            ),
         )
 
-
-        Thread({
-            pollLoop()
-        }, "kafka-consumer-thread").also {
+        Thread({ pollLoop() }, "kafka-consumer-thread").also {
             it.isDaemon = true
             it.start()
         }
@@ -61,20 +55,35 @@ class ConsumerService(
         try {
             while (running) {
                 val records = kafkaConsumer.poll(Duration.ofMillis(kafkaProperties.consumer.pollTimeoutMs))
+                var batchProcessedSuccessfully = true
 
                 for (record in records) {
                     log.info(
                         "Получено сообщение: topic={}, offset={}, key={}",
-                        record.topic(), record.offset(), record.key()
+                        record.topic(),
+                        record.offset(),
+                        record.key(),
                     )
-                    handleRecord(record)
+                    runCatching { handleRecord(record) }
+                        .onFailure { ex ->
+                            batchProcessedSuccessfully = false
+                            log.error(
+                                "Ошибка обработки сообщения: topic={}, value={}",
+                                record.topic(),
+                                record.value(),
+                                ex,
+                            )
+                        }
+                    if (!batchProcessedSuccessfully) {
+                        break
+                    }
                 }
 
-                if (!records.isEmpty) {
+                if (!records.isEmpty && batchProcessedSuccessfully) {
                     kafkaConsumer.commitSync()
                 }
             }
-        } catch (e: WakeupException) {
+        } catch (_: WakeupException) {
             log.info("Consumer остановлен")
         } finally {
             kafkaConsumer.close()
@@ -82,60 +91,51 @@ class ConsumerService(
     }
 
     private fun handleRecord(record: ConsumerRecord<String, String>) {
-        try {
-            when (record.topic()) {
-                kafkaProperties.topics.paymentResult -> handlePaymentResult(record.value())
-                kafkaProperties.topics.dsResult -> handleDsResult(record.value())
-                else -> log.warn("Неизвестный топик: {}", record.topic())
-            }
-        } catch (e: Exception) {
-            log.error("Ошибка обработки сообщения: topic={}, value={}", record.topic(), record.value(), e)
+        when (record.topic()) {
+            kafkaProperties.topics.paymentResult -> handleBankResult(record.value(), "payment")
+            kafkaProperties.topics.retryResponse -> handleBankResult(record.value(), "retry")
+            kafkaProperties.topics.dsResult -> handleBankResult(record.value(), "3ds")
+            else -> log.warn("Неизвестный топик: {}", record.topic())
         }
     }
 
-    fun handlePaymentResult(value: String) {
+    private fun handleBankResult(value: String, source: String) {
         transactionTemplate.execute {
-            log.info("TX BEGIN OF SENDING RESULT")
             val bankResult = objectMapper.readValue<BankPayDecision>(value)
             val order = orderRepository.findByOrderIdForUpdate(bankResult.orderId)
-            requireNotNull(order)
-            when (bankResult.status) {
+            if (order == null) {
+                log.warn("orderId={} не найден для результата source={}", bankResult.orderId, source)
+                return@execute
+            }
 
-                BankPayDecision.Status.SUCCESS -> ticketProcessService.issueTicket(order)
+            when (bankResult.status) {
+                BankPayDecision.Status.SUCCESS -> {
+                    if (order.status != OrderStatus.PAID) {
+                        ticketProcessService.issueTicket(order)
+                    }
+                }
 
                 BankPayDecision.Status.REQUIRES_3DS -> {
                     val paymentId = bankResult.paymentId
                         ?: throw IllegalStateException("Bank response missing payment_id for REQUIRES_3DS")
-
-                    order.status = OrderStatus.PENDING_3DS
-                    order.bankPaymentId = paymentId
-                    orderRepository.save(order)
-
-                    PayOrderPending3dsResponse(
-                        status = PayOrderPending3dsResponse.Status.PENDING_3DS,
-                        paymentId = paymentId,
-                        message = bankResult.challengeMessage ?: "Confirm 3DS challenge",
-                    )
+                    if (order.status != OrderStatus.PAID && order.status != OrderStatus.CANCELLED) {
+                        order.status = OrderStatus.PENDING_3DS
+                        order.bankPaymentId = paymentId
+                        orderRepository.save(order)
+                    }
                 }
 
                 BankPayDecision.Status.DECLINED -> {
-                    ticketProcessService.declineOrder(order, bankResult.reason)
+                    if (order.status != OrderStatus.PAID && order.status != OrderStatus.CANCELLED) {
+                        ticketProcessService.compensateDeclinedOrder(order)
+                    }
                 }
             }
         }
     }
 
-
-fun handleDsResult(value: String) {
-    transactionTemplate.execute {
-        log.info("TX END")
-
+    override fun destroy() {
+        running = false
+        kafkaConsumer.wakeup()
     }
-}
-
-
-override fun destroy() {
-    running = false
-    kafkaConsumer.wakeup()
-}
 }

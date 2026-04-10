@@ -32,13 +32,8 @@ class ServiceOperationsController(
     fun retryPayment(
         @PathVariable orderId: String,
         @RequestBody request: PayOrderRequest,
-    ): ResponseEntity<Any> {
-        val response = ticketProcessService.retryPayment(orderId, request)
-        return when (response) {
-            is PayOrderSuccessResponse -> ResponseEntity.ok(response)
-            is PayOrderPending3dsResponse -> ResponseEntity.status(HttpStatus.ACCEPTED).body(response)
-            else -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
-        }
+    ): ResponseEntity<AsyncOrderOperationAcceptedResponse> {
+        return ResponseEntity.accepted().body(ticketProcessService.retryPayment(orderId, request))
     }
 
     @PatchMapping("/routes/{routeId}")

@@ -11,6 +11,8 @@ data class BankPayRequestPayload(
 )
 
 data class BankConfirm3dsPayload(
+    val orderId: String,
+    val paymentId: String,
     val code: String,
 )
 

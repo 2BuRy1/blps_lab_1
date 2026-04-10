@@ -4,6 +4,7 @@ import com.atomikos.logging.LoggerFactory
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.springframework.stereotype.Service
+import java.util.concurrent.TimeUnit
 
 @Service
 class ProducerService(
@@ -16,14 +17,14 @@ class ProducerService(
         fun send(topic: String, key: String?, message: String) {
             val record = ProducerRecord(topic, key, message)
 
-            kafkaProducer.send(record) { metadata, exception ->
-                if (exception != null) {
-                    log.logError("Ошибка отправки в топик $topic ${exception.message}", exception)
-                } else {
-                    log.logInfo(
-                        "Отправлено → topic=${metadata.topic()}, partition=${metadata.partition()}, offset=${metadata.offset()}, $key={key}",
-                    )
-                }
+            try {
+                val metadata = kafkaProducer.send(record).get(10, TimeUnit.SECONDS)
+                log.logInfo(
+                    "Отправлено → topic=${metadata.topic()}, partition=${metadata.partition()}, offset=${metadata.offset()}, $key={key}",
+                )
+            } catch (ex: Exception) {
+                log.logError("Ошибка отправки в топик $topic ${ex.message}", ex)
+                throw IllegalStateException("Kafka send failed for topic=$topic", ex)
             }
         }
 }

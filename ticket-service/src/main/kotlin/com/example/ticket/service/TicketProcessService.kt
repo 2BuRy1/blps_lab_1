@@ -1,6 +1,7 @@
 package com.example.ticket.service
 
 import com.example.ticket.api.Confirm3dsRequest
+import com.example.ticket.api.AsyncOrderOperationAcceptedResponse
 import com.example.ticket.api.CancelOrderResponse
 import com.example.ticket.api.ConflictError
 import com.example.ticket.api.CreateOrderRequest
@@ -8,8 +9,8 @@ import com.example.ticket.api.ManagedOrderResponse
 import com.example.ticket.api.ManagedRouteResponse
 import com.example.ticket.api.NotFoundError
 import com.example.ticket.api.OrderCreatedResponse
+import com.example.ticket.api.OrderStateResponse
 import com.example.ticket.api.Passenger
-import com.example.ticket.api.PayOrderPending3dsResponse
 import com.example.ticket.api.PayOrderRequest
 import com.example.ticket.api.PayOrderSuccessResponse
 import com.example.ticket.api.RouteOption
@@ -18,13 +19,8 @@ import com.example.ticket.api.Ticket
 import com.example.ticket.api.UpdateRouteManageRequest
 import com.example.ticket.api.ValidationDetail
 import com.example.ticket.client.BankGateway
-import com.example.ticket.client.BankPayDecision
 import com.example.ticket.exception.ConflictException
-import com.example.ticket.exception.BankUnavailableAfterCompensationException
-import com.example.ticket.exception.CommittedPaymentFailureException
-import com.example.ticket.exception.IntegrationUnavailableException
 import com.example.ticket.exception.NotFoundException
-import com.example.ticket.exception.PaymentDeclinedException
 import com.example.ticket.exception.ValidationException
 import com.example.ticket.persistence.entity.OrderEntity
 import com.example.ticket.persistence.entity.OrderStatus
@@ -62,8 +58,6 @@ class TicketProcessService(
     private val readOnlyTxTemplate = TransactionTemplate(transactionManager).apply {
         isReadOnly = true
     }
-
-    private val noRollbackForPaymentDeclinedTxTemplate = TransactionTemplate(transactionManager)
 
     @PreAuthorize("hasAuthority('ROUTE_VIEW')")
     fun searchRoutes(
@@ -143,7 +137,13 @@ class TicketProcessService(
             val seatTaken = orderRepository.existsByRouteRouteIdAndSeatAndStatusIn(
                 routeId = route.routeId,
                 seat = request.seat,
-                statuses = listOf(OrderStatus.CREATED, OrderStatus.PENDING_3DS, OrderStatus.PAID),
+                statuses = listOf(
+                    OrderStatus.CREATED,
+                    OrderStatus.PAYMENT_PROCESSING,
+                    OrderStatus.PENDING_3DS,
+                    OrderStatus.CONFIRMING_3DS,
+                    OrderStatus.PAID,
+                ),
             )
             if (seatTaken) {
                 throw ConflictException(
@@ -176,96 +176,76 @@ class TicketProcessService(
     }
 
     @PreAuthorize("hasAuthority('ORDER_PAY')")
-    fun payOrder(orderId: String, request: PayOrderRequest): Any {
-        var committedFailure: CommittedPaymentFailureException? = null
+    fun payOrder(orderId: String, request: PayOrderRequest): AsyncOrderOperationAcceptedResponse {
+        return txTemplate.execute {
+            validatePayOrderRequest(request)
 
-        val result = noRollbackForPaymentDeclinedTxTemplate.execute { status ->
-            try {
-                validatePayOrderRequest(request)
+            val order = orderRepository.findByOrderIdForUpdate(orderId)
+                ?: throw NotFoundException(
+                    resource = NotFoundError.Resource.ORDER,
+                    message = "Order not found.",
+                )
 
-                val order = orderRepository.findByOrderIdForUpdate(orderId)
-                    ?: throw NotFoundException(
-                        resource = NotFoundError.Resource.ORDER,
-                        message = "Order not found.",
-                    )
-
-                if (order.status != OrderStatus.CREATED) {
-                    throw ConflictException(
-                        code = ConflictError.Code.ORDER_STATE_INVALID,
-                        message = "Order is not in payable state.",
-                    )
-                }
-
-                processPayment(order, request, orderId)
-            } catch (ex: CommittedPaymentFailureException) {
-                committedFailure = ex
-                null
-            } catch (ex: Exception) {
-                status.setRollbackOnly()
-                throw ex
+            if (order.status != OrderStatus.CREATED) {
+                throw ConflictException(
+                    code = ConflictError.Code.ORDER_STATE_INVALID,
+                    message = "Order is not in payable state.",
+                )
             }
-        }
 
-        committedFailure?.let { throw it }
+            order.status = OrderStatus.PAYMENT_PROCESSING
+            orderRepository.save(order)
 
-        return result ?: throw IllegalStateException("Transaction returned null")
+            bankGateway.authorize(amount = order.amount, request = request, orderId = order.orderId)
+
+            AsyncOrderOperationAcceptedResponse(
+                orderId = order.orderId,
+                message = "Payment request accepted. Poll /orders/${order.orderId}/state for result.",
+            )
+        } ?: throw IllegalStateException("Transaction returned null")
     }
 
     @PreAuthorize("hasAuthority('ORDER_PAY')")
-    fun confirm3ds(orderId: String, request: Confirm3dsRequest): PayOrderSuccessResponse {
-        var committedFailure: CommittedPaymentFailureException? = null
+    fun confirm3ds(orderId: String, request: Confirm3dsRequest): AsyncOrderOperationAcceptedResponse {
+        return txTemplate.execute {
+            validateConfirm3dsRequest(request)
 
-        val result = txTemplate.execute { status ->
-            try {
-                validateConfirm3dsRequest(request)
+            val order = orderRepository.findByOrderIdForUpdate(orderId)
+                ?: throw NotFoundException(
+                    resource = NotFoundError.Resource.ORDER,
+                    message = "Order not found.",
+                )
 
-                val order = orderRepository.findByOrderIdForUpdate(orderId)
-                    ?: throw NotFoundException(
-                        resource = NotFoundError.Resource.ORDER,
-                        message = "Order not found.",
-                    )
-
-                if (order.status != OrderStatus.PENDING_3DS) {
+            when (order.status) {
+                OrderStatus.PENDING_3DS -> {
+                    // Keep order in pending state for BPMN-compatible compensation semantics.
+                }
+                OrderStatus.CONFIRMING_3DS -> {
+                    // Legacy/stuck state recovery: return to pending before dispatch.
+                    order.status = OrderStatus.PENDING_3DS
+                    orderRepository.save(order)
+                }
+                else -> {
                     throw ConflictException(
                         code = ConflictError.Code.ORDER_STATE_INVALID,
                         message = "Order is not waiting for 3DS confirmation.",
                     )
                 }
-
-                val paymentId = order.bankPaymentId
-                    ?: throw ConflictException(
-                        code = ConflictError.Code.ORDER_STATE_INVALID,
-                        message = "Bank payment id is missing.",
-                    )
-
-                val bankResult = try {
-                    bankGateway.confirm3ds(paymentId = paymentId, code = request.code)
-                } catch (_: IntegrationUnavailableException) {
-                    declineOrderBecauseBankUnavailable(order)
-                }
-
-                when (bankResult.status) {
-                    BankPayDecision.Status.SUCCESS -> issueTicket(order)
-                    BankPayDecision.Status.DECLINED -> declineOrder(order, bankResult.reason)
-                    BankPayDecision.Status.REQUIRES_3DS -> throw ConflictException(
-                        code = ConflictError.Code.ORDER_STATE_INVALID,
-                        message = "3DS confirmation is still pending.",
-                    )
-                }
-            } catch (ex: CommittedPaymentFailureException) {
-                committedFailure = ex
-                null
-            } catch (ex: Exception) {
-                status.setRollbackOnly()
-                throw ex
             }
-        }
 
-        committedFailure?.let { throw it }
+            val paymentId = order.bankPaymentId
+                ?: throw ConflictException(
+                    code = ConflictError.Code.ORDER_STATE_INVALID,
+                    message = "Bank payment id is missing.",
+                )
 
-        @Suppress("UNCHECKED_CAST")
-        return result as? PayOrderSuccessResponse
-            ?: throw IllegalStateException("Transaction returned null")
+            bankGateway.confirm3ds(orderId = order.orderId, paymentId = paymentId, code = request.code)
+
+            AsyncOrderOperationAcceptedResponse(
+                orderId = order.orderId,
+                message = "3DS confirmation accepted. Poll /orders/${order.orderId}/state for result.",
+            )
+        } ?: throw IllegalStateException("Transaction returned null")
     }
 
     @PreAuthorize("hasAuthority('TICKET_VIEW')")
@@ -319,6 +299,25 @@ class TicketProcessService(
         } ?: throw IllegalStateException("Transaction returned null")
     }
 
+    @PreAuthorize("hasAuthority('ORDER_PAY')")
+    fun getOrderState(orderId: String): OrderStateResponse {
+        return readOnlyTxTemplate.execute {
+            val order = orderRepository.findById(orderId).orElseThrow {
+                NotFoundException(
+                    resource = NotFoundError.Resource.ORDER,
+                    message = "Order not found.",
+                )
+            }
+
+            OrderStateResponse(
+                orderId = order.orderId,
+                status = toOrderStateStatus(order.status),
+                bankPaymentId = order.bankPaymentId,
+                ticketId = order.ticketId,
+            )
+        } ?: throw IllegalStateException("Transaction returned null")
+    }
+
     @PreAuthorize("hasAuthority('ORDER_MANAGE')")
     fun cancelOrder(orderId: String): CancelOrderResponse {
         return txTemplate.execute {
@@ -330,7 +329,9 @@ class TicketProcessService(
 
             when (order.status) {
                 OrderStatus.CREATED,
+                OrderStatus.PAYMENT_PROCESSING,
                 OrderStatus.PENDING_3DS,
+                OrderStatus.CONFIRMING_3DS,
                     -> {
                     releaseReservedSeat(order)
                     order.status = OrderStatus.CANCELLED
@@ -359,51 +360,47 @@ class TicketProcessService(
     }
 
     @PreAuthorize("hasAuthority('ORDER_MANAGE')")
-    fun retryPayment(orderId: String, request: PayOrderRequest): Any {
-        var committedFailure: CommittedPaymentFailureException? = null
+    fun retryPayment(orderId: String, request: PayOrderRequest): AsyncOrderOperationAcceptedResponse {
+        return txTemplate.execute {
+            validatePayOrderRequest(request)
 
-        val result = noRollbackForPaymentDeclinedTxTemplate.execute { status ->
-            try {
-                validatePayOrderRequest(request)
+            val order = orderRepository.findByOrderIdForUpdate(orderId)
+                ?: throw NotFoundException(
+                    resource = NotFoundError.Resource.ORDER,
+                    message = "Order not found.",
+                )
 
-                val order = orderRepository.findByOrderIdForUpdate(orderId)
-                    ?: throw NotFoundException(
-                        resource = NotFoundError.Resource.ORDER,
-                        message = "Order not found.",
-                    )
+            when (order.status) {
+                OrderStatus.DECLINED -> reactivateDeclinedOrderForRetry(order)
+                OrderStatus.CREATED -> {}
+                OrderStatus.PAYMENT_PROCESSING,
+                OrderStatus.PENDING_3DS,
+                OrderStatus.CONFIRMING_3DS,
+                    -> throw ConflictException(
+                    code = ConflictError.Code.ORDER_STATE_INVALID,
+                    message = "Order has active payment flow already.",
+                )
 
-                when (order.status) {
-                    OrderStatus.DECLINED -> reactivateDeclinedOrderForRetry(order)
-                    OrderStatus.CREATED -> {}
-                    OrderStatus.PENDING_3DS -> throw ConflictException(
-                        code = ConflictError.Code.ORDER_STATE_INVALID,
-                        message = "Order is already waiting for 3DS confirmation.",
-                    )
+                OrderStatus.PAID -> throw ConflictException(
+                    code = ConflictError.Code.ORDER_STATE_INVALID,
+                    message = "Order is already paid.",
+                )
 
-                    OrderStatus.PAID -> throw ConflictException(
-                        code = ConflictError.Code.ORDER_STATE_INVALID,
-                        message = "Order is already paid.",
-                    )
-
-                    OrderStatus.CANCELLED -> throw ConflictException(
-                        code = ConflictError.Code.ORDER_STATE_INVALID,
-                        message = "Cancelled order cannot be retried.",
-                    )
-                }
-
-                processPayment(order, request, orderId)
-            } catch (ex: CommittedPaymentFailureException) {
-                committedFailure = ex
-                null
-            } catch (ex: Exception) {
-                status.setRollbackOnly()
-                throw ex
+                OrderStatus.CANCELLED -> throw ConflictException(
+                    code = ConflictError.Code.ORDER_STATE_INVALID,
+                    message = "Cancelled order cannot be retried.",
+                )
             }
-        }
 
-        committedFailure?.let { throw it }
+            order.status = OrderStatus.PAYMENT_PROCESSING
+            orderRepository.save(order)
+            bankGateway.retryAuthorize(amount = order.amount, request = request, orderId = order.orderId)
 
-        return result ?: throw IllegalStateException("Transaction returned null")
+            AsyncOrderOperationAcceptedResponse(
+                orderId = order.orderId,
+                message = "Retry payment request accepted. Poll /orders/${order.orderId}/state for result.",
+            )
+        } ?: throw IllegalStateException("Transaction returned null")
     }
 
     @PreAuthorize("hasAuthority('ROUTE_MANAGE')")
@@ -555,15 +552,6 @@ class TicketProcessService(
         } ?: throw IllegalStateException("Transaction returned null")
     }
 
-     fun processPayment(order: OrderEntity, request: PayOrderRequest, orderId: String) {
-         try {
-            bankGateway.authorize(amount = order.amount, request = request, orderId = orderId)
-        } catch (_: Exception) {
-            declineOrderBecauseBankUnavailable(order)
-        }
-    }
-
-
     fun issueTicket(order: OrderEntity): PayOrderSuccessResponse {
         val ticket = TicketEntity(
             ticketId = nextTicketId(),
@@ -584,29 +572,24 @@ class TicketProcessService(
         )
     }
 
-     fun declineOrder(order: OrderEntity, reason: String?): Nothing {
-        compensateDeclinedOrder(order)
+    fun compensateDeclinedOrder(order: OrderEntity) {
+        if (order.status == OrderStatus.DECLINED || order.status == OrderStatus.CANCELLED) {
+            return
+        }
+        if (order.status == OrderStatus.PAID) {
+            throw ConflictException(
+                code = ConflictError.Code.ORDER_STATE_INVALID,
+                message = "Paid order cannot be declined.",
+            )
+        }
 
-        throw PaymentDeclinedException(
-            "Payment was declined by the bank${reason?.let { ": $it" } ?: "."}",
-        )
-    }
-
-     fun declineOrderBecauseBankUnavailable(order: OrderEntity): Nothing {
-        compensateDeclinedOrder(order)
-
-        throw BankUnavailableAfterCompensationException(
-            "Bank is unavailable. Order was declined and seat released.",
-        )
-    }
-
-     fun compensateDeclinedOrder(order: OrderEntity) {
         releaseReservedSeat(order)
         order.status = OrderStatus.DECLINED
+        order.bankPaymentId = null
         orderRepository.save(order)
     }
 
-     fun reactivateDeclinedOrderForRetry(order: OrderEntity) {
+    fun reactivateDeclinedOrderForRetry(order: OrderEntity) {
         val route = routeRepository.findByRouteIdForUpdate(order.route.routeId)
             ?: throw NotFoundException(
                 resource = NotFoundError.Resource.ROUTE,
@@ -623,7 +606,13 @@ class TicketProcessService(
         val seatTaken = orderRepository.existsByRouteRouteIdAndSeatAndStatusIn(
             routeId = route.routeId,
             seat = order.seat,
-            statuses = listOf(OrderStatus.CREATED, OrderStatus.PENDING_3DS, OrderStatus.PAID),
+            statuses = listOf(
+                OrderStatus.CREATED,
+                OrderStatus.PAYMENT_PROCESSING,
+                OrderStatus.PENDING_3DS,
+                OrderStatus.CONFIRMING_3DS,
+                OrderStatus.PAID,
+            ),
         )
         if (seatTaken) {
             throw ConflictException(
@@ -744,10 +733,24 @@ class TicketProcessService(
     private fun toManagedOrderStatus(status: OrderStatus): ManagedOrderResponse.Status {
         return when (status) {
             OrderStatus.CREATED -> ManagedOrderResponse.Status.CREATED
+            OrderStatus.PAYMENT_PROCESSING -> ManagedOrderResponse.Status.PAYMENT_PROCESSING
             OrderStatus.PENDING_3DS -> ManagedOrderResponse.Status.PENDING_3DS
+            OrderStatus.CONFIRMING_3DS -> ManagedOrderResponse.Status.CONFIRMING_3DS
             OrderStatus.PAID -> ManagedOrderResponse.Status.PAID
             OrderStatus.DECLINED -> ManagedOrderResponse.Status.DECLINED
             OrderStatus.CANCELLED -> ManagedOrderResponse.Status.CANCELLED
+        }
+    }
+
+    private fun toOrderStateStatus(status: OrderStatus): OrderStateResponse.Status {
+        return when (status) {
+            OrderStatus.CREATED -> OrderStateResponse.Status.CREATED
+            OrderStatus.PAYMENT_PROCESSING -> OrderStateResponse.Status.PAYMENT_PROCESSING
+            OrderStatus.PENDING_3DS -> OrderStateResponse.Status.PENDING_3DS
+            OrderStatus.CONFIRMING_3DS -> OrderStateResponse.Status.CONFIRMING_3DS
+            OrderStatus.PAID -> OrderStateResponse.Status.PAID
+            OrderStatus.DECLINED -> OrderStateResponse.Status.DECLINED
+            OrderStatus.CANCELLED -> OrderStateResponse.Status.CANCELLED
         }
     }
 

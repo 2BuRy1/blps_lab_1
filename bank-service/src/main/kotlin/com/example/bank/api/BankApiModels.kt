@@ -31,6 +31,12 @@ data class Confirm3dsRequest(
     val code: String,
 )
 
+data class Confirm3dsKafkaRequest(
+    val orderId: String,
+    val paymentId: String,
+    val code: String,
+)
+
 data class BankErrorResponse(
     val error: String,
     val message: String,

@@ -2,7 +2,7 @@ package com.example.bank.service
 
 import com.example.bank.api.BankPayRequest
 import com.example.bank.api.BankPayResponse
-import com.example.bank.api.Confirm3dsRequest
+import com.example.bank.api.Confirm3dsKafkaRequest
 import com.example.bank.persistence.entity.PaymentAttemptEntity
 import com.example.bank.persistence.repository.PaymentAttemptRepository
 import org.slf4j.LoggerFactory
@@ -87,44 +87,67 @@ class BankPaymentService(
         }
     }
 
-//    fun confirm3ds(paymentId: String, request: Confirm3dsRequest): BankPayResponse {
-//        var txOutcome = "UNKNOWN"
-//        log.info("BANK_TX_BEGIN phase=bank op=confirm_3ds paymentId={}", paymentId)
-//
-//        return try {
-//            transactionTemplate.execute { _ ->
-//                require(request.code.matches(Regex("^\\d{6}$"))) { "code must be 6 digits" }
-//
-//                val payment = paymentAttemptRepository.findByPaymentIdForUpdate(paymentId)
-//                    ?: throw PaymentNotFoundException(paymentId)
-//
-//                require(payment.status == BankPayResponse.Status.REQUIRES_3DS.name) {
-//                    "payment is not waiting for 3DS confirmation"
-//                }
-//
-//                val response = if (payment.threeDsCode == request.code) {
-//                    BankPayResponse(status = BankPayResponse.Status.SUCCESS)
-//                } else {
-//                    BankPayResponse(
-//                        status = BankPayResponse.Status.DECLINED,
-//                        reason = "3DS_FAILED",
-//                    )
-//                }
-//
-//                payment.status = response.status.name
-//                payment.reason = response.reason
-//                paymentAttemptRepository.save(payment)
-//
-//                txOutcome = response.status.name
-//                response
-//            } ?: throw IllegalStateException("Transaction returned null")
-//        } catch (ex: Exception) {
-//            txOutcome = "ERROR_${ex.javaClass.simpleName}"
-//            throw ex
-//        } finally {
-//            log.info("BANK_TX_END phase=bank op=confirm_3ds paymentId={} outcome={}", paymentId, txOutcome)
-//        }
-//    }
+    fun confirm3ds(request: Confirm3dsKafkaRequest): BankPayResponse {
+        var txOutcome = "UNKNOWN"
+        log.info("BANK_TX_BEGIN phase=bank op=confirm_3ds paymentId={}", request.paymentId)
+
+        return try {
+            transactionTemplate.execute { _ ->
+                require(request.code.matches(Regex("^\\d{6}$"))) { "code must be 6 digits" }
+
+                val payment = paymentAttemptRepository.findByPaymentIdForUpdate(request.paymentId)
+                    ?: throw PaymentNotFoundException(request.paymentId)
+
+                if (payment.status == BankPayResponse.Status.SUCCESS.name) {
+                    txOutcome = BankPayResponse.Status.SUCCESS.name
+                    return@execute BankPayResponse(
+                        orderId = request.orderId,
+                        status = BankPayResponse.Status.SUCCESS,
+                    )
+                }
+                if (payment.status == BankPayResponse.Status.DECLINED.name) {
+                    txOutcome = BankPayResponse.Status.DECLINED.name
+                    return@execute BankPayResponse(
+                        orderId = request.orderId,
+                        status = BankPayResponse.Status.DECLINED,
+                        reason = payment.reason ?: "DECLINED",
+                    )
+                }
+                require(payment.status == BankPayResponse.Status.REQUIRES_3DS.name) {
+                    "payment is not waiting for 3DS confirmation"
+                }
+
+                val response = if (payment.threeDsCode == request.code) {
+                    BankPayResponse(
+                        orderId = request.orderId,
+                        status = BankPayResponse.Status.SUCCESS,
+                    )
+                } else {
+                    BankPayResponse(
+                        orderId = request.orderId,
+                        status = BankPayResponse.Status.DECLINED,
+                        reason = "3DS_FAILED",
+                    )
+                }
+
+                payment.status = response.status.name
+                payment.reason = response.reason
+                paymentAttemptRepository.save(payment)
+
+                txOutcome = response.status.name
+                response
+            } ?: throw IllegalStateException("Transaction returned null")
+        } catch (ex: Exception) {
+            txOutcome = "ERROR_${ex.javaClass.simpleName}"
+            throw ex
+        } finally {
+            log.info(
+                "BANK_TX_END phase=bank op=confirm_3ds paymentId={} outcome={}",
+                request.paymentId,
+                txOutcome,
+            )
+        }
+    }
 
     private fun validate(request: BankPayRequest) {
         require(request.amount >= 0) { "amount must be >= 0" }
