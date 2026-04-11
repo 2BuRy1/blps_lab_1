@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.validation.constraints.Size
+import java.time.Instant
 
 @Entity
 @Table(name = "orders")
@@ -38,6 +39,9 @@ class OrderEntity(
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     var status: OrderStatus,
+
+    @Column(name = "status_updated_at")
+    var statusUpdatedAt: Instant? = Instant.now(),
 
     @Column(name = "bank_payment_id")
     var bankPaymentId: String? = null,

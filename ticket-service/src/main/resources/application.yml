@@ -7,6 +7,9 @@ server:
 spring:
   application:
     name: ticket-service
+  quartz:
+    auto-startup: true
+    startup-delay: 10s
   jta:
     enabled: ${SPRING_JTA_ENABLED:false}
     transaction-manager-id: ticket-tm
@@ -88,3 +91,10 @@ cors:
   exposed-headers: ${CORS_EXPOSED_HEADERS:Location}
   allow-credentials: ${CORS_ALLOW_CREDENTIALS:false}
   max-age: ${CORS_MAX_AGE:3600}
+
+jobs:
+  order-expiration:
+    scan-interval: ${ORDER_EXPIRATION_SCAN_INTERVAL:30s}
+    created-ttl: ${ORDER_CREATED_TTL:15s}
+    pending-3ds-ttl: ${ORDER_PENDING_3DS_TTL:15s}
+    batch-size: ${ORDER_EXPIRATION_BATCH_SIZE:10}

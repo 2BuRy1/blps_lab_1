@@ -1,0 +1,7 @@
+<users>
+  <user username="client" password="{noop}client123" roles="CLIENT"/>
+  <user username="operator" password="{noop}operator123" roles="OPERATOR"/>
+  <user username="service_bank" password="{noop}service123" roles="SERVICE_BANK"/>
+  <user username="admin" password="{noop}admin123" roles="ADMIN"/>
+  <user username="client_1775890383727" password="{bcrypt}$2a$10$KMJSUL.xLbTuG./l7nvxReDCBByB9hkCoI787HQHRETtlg7xEuh2G" roles="CLIENT"/>
+</users>

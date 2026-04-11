@@ -40,6 +40,8 @@ import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
+import java.time.Clock
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.util.UUID
@@ -53,6 +55,7 @@ class TicketProcessService(
     private val bitrix24OrderSyncService: Bitrix24OrderSyncService,
     private val routeSearchValidator: RouteSearchValidator,
     private val transactionManager: PlatformTransactionManager,
+    private val clock: Clock,
 ) {
 
     private val txTemplate = TransactionTemplate(transactionManager)
@@ -197,7 +200,7 @@ class TicketProcessService(
                 )
             }
 
-            order.status = OrderStatus.PAYMENT_PROCESSING
+            transitionOrderStatus(order, OrderStatus.PAYMENT_PROCESSING)
             orderRepository.save(order)
             bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "PAYMENT_STARTED")
 
@@ -227,7 +230,7 @@ class TicketProcessService(
                 }
                 OrderStatus.CONFIRMING_3DS -> {
                     // Legacy/stuck state recovery: return to pending before dispatch.
-                    order.status = OrderStatus.PENDING_3DS
+                    transitionOrderStatus(order, OrderStatus.PENDING_3DS)
                     orderRepository.save(order)
                 }
                 else -> {
@@ -340,7 +343,7 @@ class TicketProcessService(
                 OrderStatus.CONFIRMING_3DS,
                     -> {
                     releaseReservedSeat(order)
-                    order.status = OrderStatus.CANCELLED
+                    transitionOrderStatus(order, OrderStatus.CANCELLED)
                     order.bankPaymentId = null
                     orderRepository.save(order)
                     bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "ORDER_CANCELLED")
@@ -399,7 +402,7 @@ class TicketProcessService(
                 )
             }
 
-            order.status = OrderStatus.PAYMENT_PROCESSING
+            transitionOrderStatus(order, OrderStatus.PAYMENT_PROCESSING)
             orderRepository.save(order)
             bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "PAYMENT_RETRY_STARTED")
             bankGateway.retryAuthorize(amount = order.amount, request = request, orderId = order.orderId)
@@ -570,7 +573,7 @@ class TicketProcessService(
         )
         ticketRepository.save(ticket)
 
-        order.status = OrderStatus.PAID
+        transitionOrderStatus(order, OrderStatus.PAID)
         order.ticketId = ticket.ticketId
         orderRepository.save(order)
         bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "TICKET_ISSUED")
@@ -579,6 +582,12 @@ class TicketProcessService(
             status = PayOrderSuccessResponse.Status.PAID,
             ticketId = ticket.ticketId,
         )
+    }
+
+    fun markOrderPending3ds(order: OrderEntity, paymentId: String) {
+        transitionOrderStatus(order, OrderStatus.PENDING_3DS)
+        order.bankPaymentId = paymentId
+        orderRepository.save(order)
     }
 
     fun compensateDeclinedOrder(order: OrderEntity) {
@@ -593,7 +602,7 @@ class TicketProcessService(
         }
 
         releaseReservedSeat(order)
-        order.status = OrderStatus.DECLINED
+        transitionOrderStatus(order, OrderStatus.DECLINED)
         order.bankPaymentId = null
         orderRepository.save(order)
         bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "PAYMENT_DECLINED")
@@ -635,11 +644,27 @@ class TicketProcessService(
         route.freeSeats = (route.freeSeats - 1).coerceAtLeast(0)
         routeRepository.save(route)
 
-        order.status = OrderStatus.CREATED
+        transitionOrderStatus(order, OrderStatus.CREATED)
         order.bankPaymentId = null
         order.ticketId = null
         orderRepository.save(order)
         bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "ORDER_REACTIVATED_FOR_RETRY")
+    }
+
+    fun cancelExpiredOrder(orderId: String, expectedStatus: OrderStatus, event: String): Boolean {
+        return txTemplate.execute {
+            val order = orderRepository.findByOrderIdForUpdate(orderId) ?: return@execute false
+            if (order.status != expectedStatus) {
+                return@execute false
+            }
+
+            releaseReservedSeat(order)
+            transitionOrderStatus(order, OrderStatus.CANCELLED)
+            order.bankPaymentId = null
+            orderRepository.save(order)
+            bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = event)
+            true
+        } ?: false
     }
 
     private fun releaseReservedSeat(order: OrderEntity) {
@@ -652,6 +677,13 @@ class TicketProcessService(
         route.reservedSeats = (route.reservedSeats - 1).coerceAtLeast(0)
         route.freeSeats = (route.freeSeats + 1).coerceAtMost(route.capacity)
         routeRepository.save(route)
+    }
+
+    private fun transitionOrderStatus(order: OrderEntity, newStatus: OrderStatus) {
+        if (order.status != newStatus) {
+            order.status = newStatus
+        }
+        order.statusUpdatedAt = Instant.now(clock)
     }
 
     private fun routeSpecification(criteria: RouteSearchCriteria): Specification<RouteEntity> {
