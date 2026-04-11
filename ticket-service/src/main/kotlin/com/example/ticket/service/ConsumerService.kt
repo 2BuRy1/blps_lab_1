@@ -121,9 +121,7 @@ class ConsumerService(
                     val paymentId = bankResult.paymentId
                         ?: throw IllegalStateException("Bank response missing payment_id for REQUIRES_3DS")
                     if (order.status != OrderStatus.PAID && order.status != OrderStatus.CANCELLED) {
-                        order.status = OrderStatus.PENDING_3DS
-                        order.bankPaymentId = paymentId
-                        orderRepository.save(order)
+                        ticketProcessService.markOrderPending3ds(order, paymentId)
                         bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "THREE_DS_REQUIRED")
                     }
                 }
