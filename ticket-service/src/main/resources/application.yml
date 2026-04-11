@@ -8,7 +8,7 @@ spring:
   application:
     name: ticket-service
   jta:
-    enabled: true
+    enabled: ${SPRING_JTA_ENABLED:false}
     transaction-manager-id: ticket-tm
     atomikos:
       properties:
@@ -29,13 +29,6 @@ spring:
     hibernate:
       ddl-auto: update
     open-in-view: false
-    properties:
-      hibernate:
-        transaction:
-          coordinator_class: jta
-      jakarta:
-        persistence:
-          transactionType: JTA
   data:
     web:
       pageable:
@@ -48,6 +41,22 @@ integration:
     password: service123
     connect-timeout: 2s
     read-timeout: 5s
+  bitrix:
+    enabled: ${BITRIX_ENABLED:true}
+    jca:
+      jndi-name: ${BITRIX_JCA_JNDI_NAME:java:/eis/Bitrix24CF}
+      initial-context-factory: ${BITRIX_JCA_INITIAL_CONTEXT_FACTORY:}
+      provider-url: ${BITRIX_JCA_PROVIDER_URL:}
+      security-principal: ${BITRIX_JCA_SECURITY_PRINCIPAL:}
+      security-credentials: ${BITRIX_JCA_SECURITY_CREDENTIALS:}
+      add-operation: ${BITRIX_JCA_ADD_OPERATION:crm.deal.add.json}
+      update-operation: ${BITRIX_JCA_UPDATE_OPERATION:crm.deal.update.json}
+      stage:
+        new: ${BITRIX_JCA_STAGE_NEW:NEW}
+        payment-processing: ${BITRIX_JCA_STAGE_PAYMENT_PROCESSING:PREPAYMENT_INVOICE}
+        paid: ${BITRIX_JCA_STAGE_PAID:WON}
+        declined: ${BITRIX_JCA_STAGE_DECLINED:LOSE}
+        cancelled: ${BITRIX_JCA_STAGE_CANCELLED:LOSE}
 
 kafka:
   bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
@@ -69,7 +78,7 @@ kafka:
     retry-response: retry-reponse-topic
 
 security:
-  users-xml: ${TICKET_SECURITY_USERS_XML:file:./data/ticket-users.xml}
+  users-xml: ${TICKET_SECURITY_USERS_XML:classpath:security/users.xml}
   users-template: ${TICKET_SECURITY_USERS_TEMPLATE:classpath:security/users.xml}
 
 cors:

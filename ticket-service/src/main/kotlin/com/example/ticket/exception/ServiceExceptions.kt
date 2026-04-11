@@ -1,6 +1,7 @@
 package com.example.ticket.exception
 
 import com.example.ticket.api.ConflictError
+import com.example.ticket.api.IntegrationUnavailableError
 import com.example.ticket.api.NotFoundError
 import com.example.ticket.api.ValidationDetail
 
@@ -32,6 +33,7 @@ class BankUnavailableAfterCompensationException(
 ) : CommittedPaymentFailureException(message)
 
 class IntegrationUnavailableException(
+    val service: IntegrationUnavailableError.Service = IntegrationUnavailableError.Service.BANK,
     message: String,
 ) : RuntimeException(message)
 

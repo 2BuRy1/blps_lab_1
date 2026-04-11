@@ -1,6 +1,5 @@
 package com.example.ticket.config
 
-import com.atomikos.logging.LoggerFactory
 import jakarta.annotation.PostConstruct
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.NewTopic
@@ -10,6 +9,7 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
+import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.util.*
@@ -58,7 +58,7 @@ class KafkaConfig(
 
 
         props[ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG] = true
-        log.logInfo("Kafka producer initialized: servers={${kafkaProperties.bootstrapServers}}")
+        log.info("Kafka producer initialized: servers={}", kafkaProperties.bootstrapServers)
 
         return KafkaProducer<String?, String?>(props)
     }
@@ -66,7 +66,7 @@ class KafkaConfig(
     @PostConstruct
     fun createTopics() {
         val existingTopics = adminClient.listTopics().names().get()
-        log.logInfo("Существующие топики: {$existingTopics}")
+        log.info("Существующие топики: {}", existingTopics)
 
         val topicsToCreate = listOf(
             kafkaProperties.topics.paymentRequest,
@@ -83,16 +83,16 @@ class KafkaConfig(
             }
 
         if (topicsToCreate.isEmpty()) {
-            log.logInfo("Все топики уже существуют")
+            log.info("Все топики уже существуют")
             return
         }
 
         adminClient.createTopics(topicsToCreate).all().get()
-        log.logInfo("Созданы топики: {${topicsToCreate.map { it.name() }}")
+        log.info("Созданы топики: {}", topicsToCreate.map { it.name() })
     }
 
     companion object {
-        private val log = LoggerFactory.createLogger(KafkaConfig::class.java)
+        private val log = LoggerFactory.getLogger(KafkaConfig::class.java)
         private const val PARTITIONS = 1
         private const val REPLICATION_FACTOR: Short = 1
     }

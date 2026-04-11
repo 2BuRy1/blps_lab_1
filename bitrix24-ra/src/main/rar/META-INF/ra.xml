@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<connector xmlns="https://jakarta.ee/xml/ns/jakartaee"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/connector_2_1.xsd"
+           version="2.1">
+
+    <display-name>Bitrix24 Resource Adapter</display-name>
+    <vendor-name>BLPS</vendor-name>
+    <eis-type>Bitrix24 REST</eis-type>
+    <resourceadapter-version>0.1.0</resourceadapter-version>
+
+    <resourceadapter>
+        <resourceadapter-class>com.example.bitrix24.ra.Bitrix24ResourceAdapter</resourceadapter-class>
+
+        <outbound-resourceadapter>
+            <connection-definition>
+                <managedconnectionfactory-class>com.example.bitrix24.ra.Bitrix24ManagedConnectionFactory</managedconnectionfactory-class>
+                <config-property>
+                    <config-property-name>webhookBaseUrl</config-property-name>
+                    <config-property-type>java.lang.String</config-property-type>
+                    <config-property-value>https://b24-a0p4gq.bitrix24.ru/rest/1/ea3xpoamp12fr371/</config-property-value>
+                </config-property>
+                <config-property>
+                    <config-property-name>connectTimeoutMillis</config-property-name>
+                    <config-property-type>java.lang.Integer</config-property-type>
+                    <config-property-value>2000</config-property-value>
+                </config-property>
+                <config-property>
+                    <config-property-name>readTimeoutMillis</config-property-name>
+                    <config-property-type>java.lang.Integer</config-property-type>
+                    <config-property-value>5000</config-property-value>
+                </config-property>
+
+                <connectionfactory-interface>jakarta.resource.cci.ConnectionFactory</connectionfactory-interface>
+                <connectionfactory-impl-class>com.example.bitrix24.ra.Bitrix24ConnectionFactoryImpl</connectionfactory-impl-class>
+                <connection-interface>jakarta.resource.cci.Connection</connection-interface>
+                <connection-impl-class>com.example.bitrix24.ra.Bitrix24ConnectionImpl</connection-impl-class>
+            </connection-definition>
+
+            <transaction-support>NoTransaction</transaction-support>
+            <reauthentication-support>false</reauthentication-support>
+        </outbound-resourceadapter>
+    </resourceadapter>
+</connector>

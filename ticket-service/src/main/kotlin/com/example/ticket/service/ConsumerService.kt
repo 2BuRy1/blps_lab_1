@@ -4,6 +4,7 @@ import com.example.ticket.client.BankPayDecision
 import com.example.ticket.config.CustomKafkaProperties
 import com.example.ticket.persistence.entity.OrderStatus
 import com.example.ticket.persistence.repository.OrderRepository
+import com.example.ticket.service.integration.Bitrix24OrderSyncService
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import jakarta.annotation.PostConstruct
@@ -25,6 +26,7 @@ class ConsumerService(
     transactionManager: PlatformTransactionManager,
     private val ticketProcessService: TicketProcessService,
     private val orderRepository: OrderRepository,
+    private val bitrix24OrderSyncService: Bitrix24OrderSyncService,
 ) : DisposableBean {
 
     private val transactionTemplate = TransactionTemplate(transactionManager)
@@ -122,6 +124,7 @@ class ConsumerService(
                         order.status = OrderStatus.PENDING_3DS
                         order.bankPaymentId = paymentId
                         orderRepository.save(order)
+                        bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "THREE_DS_REQUIRED")
                     }
                 }
 

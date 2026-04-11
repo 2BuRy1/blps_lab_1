@@ -1,0 +1,6 @@
+**
+!docker/**
+!docker-compose.yaml
+!bank-service/build/libs/bank-service-0.0.1-SNAPSHOT.jar
+!ticket-service/build/libs/ticket-service-0.0.1-SNAPSHOT.war
+!bitrix24-ra/build/distributions/bitrix24-ra.rar

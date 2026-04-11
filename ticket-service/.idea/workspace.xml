@@ -5,25 +5,23 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="41a9f74a-22f5-492b-b8e9-386b6e7fb110" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankApiModels.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/api/BankApiModels.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/service/BankPaymentService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/service/BankPaymentService.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/service/ConsumerService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/service/ConsumerService.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/service/ProducerService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../bank-service/src/main/kotlin/com/example/bank/service/ProducerService.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/postman/BLPS_RZD.postman_collection.json" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/postman/BLPS_RZD.postman_collection.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../rzhd_process.png" beforeDir="false" afterPath="$PROJECT_DIR$/../rzhd_process.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../bank-service/data/tx-logs/bank/tmlog-bank.lck" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docker-compose.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../docker-compose.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle.kts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/data/tx-logs/ticket/tmlog-ticket.lck" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/TicketServiceApplication.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/TicketServiceApplication.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/api/ApiModels.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/api/ApiModels.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/api/OrderController.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/api/OrderController.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/api/ServiceOperationsController.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/api/ServiceOperationsController.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/bootstrap/OrdersStatusConstraintInitializer.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/bootstrap/OrdersStatusConstraintInitializer.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/client/BankClientModels.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/client/BankClientModels.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/client/BankGateway.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/client/BankGateway.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/config/SecurityConfig.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/config/SecurityConfig.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/persistence/entity/OrderStatus.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/persistence/entity/OrderStatus.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/config/KafkaConfig.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/config/KafkaConfig.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/exception/GlobalExceptionHandler.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/exception/GlobalExceptionHandler.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/exception/ServiceExceptions.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/exception/ServiceExceptions.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/persistence/entity/OrderEntity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/persistence/entity/OrderEntity.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/security/XmlSecurityModels.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/security/XmlSecurityModels.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/security/XmlUserStore.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/security/XmlUserStore.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/ConsumerService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/ConsumerService.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/ProducerService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/ProducerService.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/TicketProcessService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/com/example/ticket/service/TicketProcessService.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -93,7 +91,7 @@
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "Spring Boot.TicketServiceApplication.executor": "Run",
-    "git-widget-placeholder": "#2 on lab3",
+    "git-widget-placeholder": "jca-bitrix",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "/Users/montana/MyLabs/blps/blps_lab_1/ticket-service",
     "node.js.detected.package.eslint": "true",
@@ -161,7 +159,7 @@
       <workItem from="1774463611974" duration="17000" />
       <workItem from="1774682299518" duration="12252000" />
       <workItem from="1775372967417" duration="4798000" />
-      <workItem from="1775838565883" duration="2207000" />
+      <workItem from="1775838565883" duration="5993000" />
     </task>
     <servers />
   </component>

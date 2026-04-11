@@ -62,6 +62,7 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
             .body(
                 IntegrationUnavailableError(
+                    service = ex.service,
                     message = ex.message ?: "Integration with external service is unavailable.",
                 )
             )

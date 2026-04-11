@@ -44,4 +44,7 @@ class OrderEntity(
 
     @Column(name = "ticket_id")
     var ticketId: String? = null,
+
+    @Column(name = "crm_deal_id")
+    var crmDealId: Long? = null,
 )

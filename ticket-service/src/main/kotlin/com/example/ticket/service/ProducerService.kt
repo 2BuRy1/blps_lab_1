@@ -1,8 +1,8 @@
 package com.example.ticket.service
 
-import com.atomikos.logging.LoggerFactory
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.util.concurrent.TimeUnit
 
@@ -15,17 +15,21 @@ class ProducerService(
 
         try {
             val metadata = kafkaProducer.send(record).get(10, TimeUnit.SECONDS)
-            log.logInfo(
-                "Отправлено → topic=${metadata.topic()}, partition=${metadata.partition()}, offset=${metadata.offset()}, $key={key}",
+            log.info(
+                "Отправлено -> topic={}, partition={}, offset={}, key={}",
+                metadata.topic(),
+                metadata.partition(),
+                metadata.offset(),
+                key,
             )
         } catch (ex: Exception) {
-            log.logError("Ошибка отправки в топик $topic ${ex.message}", ex)
+            log.error("Ошибка отправки в топик {}: {}", topic, ex.message, ex)
             throw IllegalStateException("Kafka send failed for topic=$topic", ex)
         }
     }
 
     companion object {
-        private val log = LoggerFactory.createLogger(ProducerService::class.java)
+        private val log = LoggerFactory.getLogger(ProducerService::class.java)
     }
 
 
