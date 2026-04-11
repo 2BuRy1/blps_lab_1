@@ -29,6 +29,7 @@ import com.example.ticket.persistence.entity.TicketEntity
 import com.example.ticket.persistence.repository.OrderRepository
 import com.example.ticket.persistence.repository.RouteRepository
 import com.example.ticket.persistence.repository.TicketRepository
+import com.example.ticket.service.integration.Bitrix24OrderSyncService
 import com.example.ticket.service.validation.RouteSearchCriteria
 import com.example.ticket.service.validation.RouteSearchValidator
 import jakarta.persistence.criteria.Predicate
@@ -49,6 +50,7 @@ class TicketProcessService(
     private val orderRepository: OrderRepository,
     private val ticketRepository: TicketRepository,
     private val bankGateway: BankGateway,
+    private val bitrix24OrderSyncService: Bitrix24OrderSyncService,
     private val routeSearchValidator: RouteSearchValidator,
     private val transactionManager: PlatformTransactionManager,
 ) {
@@ -166,6 +168,8 @@ class TicketProcessService(
                 status = OrderStatus.CREATED,
             )
             orderRepository.save(order)
+            order.crmDealId = bitrix24OrderSyncService.createDealForOrder(order)
+            orderRepository.save(order)
 
             OrderCreatedResponse(
                 orderId = order.orderId,
@@ -195,6 +199,7 @@ class TicketProcessService(
 
             order.status = OrderStatus.PAYMENT_PROCESSING
             orderRepository.save(order)
+            bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "PAYMENT_STARTED")
 
             bankGateway.authorize(amount = order.amount, request = request, orderId = order.orderId)
 
@@ -239,6 +244,7 @@ class TicketProcessService(
                     message = "Bank payment id is missing.",
                 )
 
+            bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "THREE_DS_CONFIRMATION_REQUESTED")
             bankGateway.confirm3ds(orderId = order.orderId, paymentId = paymentId, code = request.code)
 
             AsyncOrderOperationAcceptedResponse(
@@ -337,6 +343,7 @@ class TicketProcessService(
                     order.status = OrderStatus.CANCELLED
                     order.bankPaymentId = null
                     orderRepository.save(order)
+                    bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "ORDER_CANCELLED")
                 }
 
                 OrderStatus.PAID -> throw ConflictException(
@@ -394,6 +401,7 @@ class TicketProcessService(
 
             order.status = OrderStatus.PAYMENT_PROCESSING
             orderRepository.save(order)
+            bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "PAYMENT_RETRY_STARTED")
             bankGateway.retryAuthorize(amount = order.amount, request = request, orderId = order.orderId)
 
             AsyncOrderOperationAcceptedResponse(
@@ -565,6 +573,7 @@ class TicketProcessService(
         order.status = OrderStatus.PAID
         order.ticketId = ticket.ticketId
         orderRepository.save(order)
+        bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "TICKET_ISSUED")
 
         return PayOrderSuccessResponse(
             status = PayOrderSuccessResponse.Status.PAID,
@@ -587,6 +596,7 @@ class TicketProcessService(
         order.status = OrderStatus.DECLINED
         order.bankPaymentId = null
         orderRepository.save(order)
+        bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "PAYMENT_DECLINED")
     }
 
     fun reactivateDeclinedOrderForRetry(order: OrderEntity) {
@@ -629,6 +639,7 @@ class TicketProcessService(
         order.bankPaymentId = null
         order.ticketId = null
         orderRepository.save(order)
+        bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "ORDER_REACTIVATED_FOR_RETRY")
     }
 
     private fun releaseReservedSeat(order: OrderEntity) {

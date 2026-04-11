@@ -1,7 +1,5 @@
 package com.example.ticket.security
 
-import com.fasterxml.jackson.dataformat.xml.XmlMapper
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.ResourceLoader
 import org.springframework.stereotype.Component
@@ -11,6 +9,11 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
+import javax.xml.parsers.DocumentBuilderFactory
+import javax.xml.transform.OutputKeys
+import javax.xml.transform.TransformerFactory
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.stream.StreamResult
 
 @Component
 class XmlUserStore(
@@ -21,7 +24,6 @@ class XmlUserStore(
     private val resourceLoader: ResourceLoader,
 ) {
 
-    private val xmlMapper = XmlMapper().apply { registerKotlinModule() }
     private val monitor = Any()
 
     fun findByUsername(username: String): XmlUser? = synchronized(monitor) {
@@ -56,9 +58,7 @@ class XmlUserStore(
     private fun readUsersUnsafe(): XmlUsers {
         ensureStorageInitializedUnsafe()
         val resource = resourceLoader.getResource(usersXmlLocation)
-        val parsed = resource.inputStream.use { input ->
-            xmlMapper.readValue(input, XmlUsers::class.java)
-        }
+        val parsed = resource.inputStream.use { input -> parseUsersXml(input) }
         return parsed.copy(
             users = parsed.users
                 .filter { it.username.isNotBlank() }
@@ -79,14 +79,14 @@ class XmlUserStore(
             )
 
         Files.createDirectories(filePath.parent ?: filePath.toAbsolutePath().parent)
-        val xml = xmlMapper.writerWithDefaultPrettyPrinter().writeValueAsString(users)
-        Files.writeString(
+        Files.newOutputStream(
             filePath,
-            xml,
             StandardOpenOption.CREATE,
             StandardOpenOption.TRUNCATE_EXISTING,
             StandardOpenOption.WRITE,
-        )
+        ).use { output ->
+            writeUsersXml(users, output)
+        }
     }
 
     private fun ensureStorageInitializedUnsafe() {
@@ -129,5 +129,52 @@ class XmlUserStore(
         }
 
         return null
+    }
+
+    private fun parseUsersXml(input: java.io.InputStream): XmlUsers {
+        val factory = DocumentBuilderFactory.newInstance().apply {
+            isNamespaceAware = false
+            isValidating = false
+            setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+            setFeature("http://xml.org/sax/features/external-general-entities", false)
+            setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+        }
+        val builder = factory.newDocumentBuilder()
+        val document = builder.parse(input)
+        val nodes = document.getElementsByTagName("user")
+        val parsedUsers = mutableListOf<XmlUser>()
+        for (i in 0 until nodes.length) {
+            val node = nodes.item(i)
+            val attrs = node.attributes ?: continue
+            parsedUsers += XmlUser(
+                username = attrs.getNamedItem("username")?.nodeValue ?: "",
+                password = attrs.getNamedItem("password")?.nodeValue ?: "",
+                roles = attrs.getNamedItem("roles")?.nodeValue ?: "",
+            )
+        }
+        return XmlUsers(parsedUsers)
+    }
+
+    private fun writeUsersXml(users: XmlUsers, output: java.io.OutputStream) {
+        val factory = DocumentBuilderFactory.newInstance()
+        val builder = factory.newDocumentBuilder()
+        val document = builder.newDocument()
+        val root = document.createElement("users")
+        document.appendChild(root)
+
+        users.users.forEach { user ->
+            val userElement = document.createElement("user")
+            userElement.setAttribute("username", user.username)
+            userElement.setAttribute("password", user.password)
+            userElement.setAttribute("roles", user.roles)
+            root.appendChild(userElement)
+        }
+
+        val transformer = TransformerFactory.newInstance().newTransformer().apply {
+            setOutputProperty(OutputKeys.INDENT, "yes")
+            setOutputProperty(OutputKeys.ENCODING, "UTF-8")
+            setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2")
+        }
+        transformer.transform(DOMSource(document), StreamResult(output))
     }
 }

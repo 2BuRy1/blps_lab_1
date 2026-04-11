@@ -209,6 +209,7 @@ data class IntegrationUnavailableError(
 
     enum class Service {
         BANK,
+        BITRIX24,
     }
 }
 
