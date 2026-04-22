@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.boot.autoconfigure.quartz.SchedulerFactoryBeanCustomizer
 import java.time.Duration
+import java.util.Date
 
 @Configuration
 class QuartzOrderExpirationConfig(
@@ -64,7 +65,7 @@ class QuartzOrderExpirationConfig(
         return TriggerBuilder.newTrigger()
             .forJob(cancelExpiredPending3dsOrdersJobDetail)
             .withIdentity("cancelExpiredPending3dsOrdersTrigger")
-            .startNow()
+            .startAt(Date())
             .withSchedule(repeatingSchedule())
             .build()
     }

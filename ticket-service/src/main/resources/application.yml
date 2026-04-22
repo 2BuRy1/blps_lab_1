@@ -1,6 +1,6 @@
 server:
 
-  port: 8080
+  port: 8089
   servlet:
     context-path: /api/v1
 
@@ -19,13 +19,17 @@ spring:
         log-base-dir: ${TICKET_ATOMIKOS_LOG_DIR:./data/tx-logs/ticket}
         log-base-name: ${TICKET_ATOMIKOS_LOG_BASE_NAME:tmlog-ticket}
   datasource:
+    url: jdbc:postgresql://${TICKET_DB_HOST:localhost}:${TICKET_DB_PORT:5432}/${TICKET_DB_NAME:studs}
+    username: ${TICKET_DB_USER:s409753}
+    password: ${TICKET_DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
     xa:
       data-source-class-name: org.postgresql.xa.PGXADataSource
       properties:
         serverName: ${TICKET_DB_HOST:localhost}
         portNumber: ${TICKET_DB_PORT:5432}
-        databaseName: ${TICKET_DB_NAME:postgres}
-        user: ${TICKET_DB_USER:postgres}
+        databaseName: ${TICKET_DB_NAME:studs}
+        user: ${TICKET_DB_USER:s409753}
         password: ${TICKET_DB_PASSWORD:postgres}
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
