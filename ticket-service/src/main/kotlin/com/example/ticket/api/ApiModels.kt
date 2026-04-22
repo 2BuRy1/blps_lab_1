@@ -100,6 +100,33 @@ data class Confirm3dsRequest(
     val code: String,
 )
 
+data class AsyncOrderOperationAcceptedResponse(
+    val status: Status = Status.ACCEPTED,
+    val orderId: String,
+    val message: String,
+) {
+    enum class Status {
+        ACCEPTED,
+    }
+}
+
+data class OrderStateResponse(
+    val orderId: String,
+    val status: Status,
+    @JsonProperty("bank_payment_id") val bankPaymentId: String? = null,
+    @JsonProperty("ticket_id") val ticketId: String? = null,
+) {
+    enum class Status {
+        CREATED,
+        PAYMENT_PROCESSING,
+        PENDING_3DS,
+        CONFIRMING_3DS,
+        PAID,
+        DECLINED,
+        CANCELLED,
+    }
+}
+
 data class Ticket(
     val ticketId: String,
     val from: String,
@@ -182,6 +209,7 @@ data class IntegrationUnavailableError(
 
     enum class Service {
         BANK,
+        BITRIX24,
     }
 }
 
@@ -197,7 +225,9 @@ data class ManagedOrderResponse(
 ) {
     enum class Status {
         CREATED,
+        PAYMENT_PROCESSING,
         PENDING_3DS,
+        CONFIRMING_3DS,
         PAID,
         DECLINED,
         CANCELLED,

@@ -4,17 +4,21 @@ import com.fasterxml.jackson.annotation.JsonProperty
 
 data class BankPayRequestPayload(
     val amount: Int,
+    val orderId: String,
     @JsonProperty("card_number") val cardNumber: String,
     @JsonProperty("expiration_date") val expirationDate: String,
     val cvv: String,
 )
 
 data class BankConfirm3dsPayload(
+    val orderId: String,
+    val paymentId: String,
     val code: String,
 )
 
 data class BankPayDecision(
     val status: Status,
+    val orderId: String,
     val reason: String? = null,
     @JsonProperty("payment_id") val paymentId: String? = null,
     @JsonProperty("challenge_message") val challengeMessage: String? = null,

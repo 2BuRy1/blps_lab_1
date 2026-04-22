@@ -29,15 +29,33 @@ class OrdersStatusConstraintInitializer(
                 """.trimIndent()
             )
 
+            jdbcTemplate.update(
+                """
+                UPDATE orders
+                SET status = 'PENDING_3DS'
+                WHERE status = 'CONFIRMING_3DS'
+                """.trimIndent()
+            )
+
             jdbcTemplate.execute(
                 """
                 ALTER TABLE orders
                 ADD CONSTRAINT orders_status_check
-                CHECK (status IN ('CREATED', 'PENDING_3DS', 'PAID', 'DECLINED', 'CANCELLED'))
+                CHECK (
+                    status IN (
+                        'CREATED',
+                        'PAYMENT_PROCESSING',
+                        'PENDING_3DS',
+                        'CONFIRMING_3DS',
+                        'PAID',
+                        'DECLINED',
+                        'CANCELLED'
+                    )
+                )
                 """.trimIndent()
             )
 
-            log.info("ORDERS_STATUS_CHECK constraint reconciled to include CANCELLED")
+            log.info("ORDERS_STATUS_CHECK constraint reconciled to include async statuses")
         }.onFailure { ex ->
             log.warn("ORDERS_STATUS_CHECK reconcile skipped: {}", ex.message)
         }

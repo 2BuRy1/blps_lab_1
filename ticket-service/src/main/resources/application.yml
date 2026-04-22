@@ -1,14 +1,17 @@
 server:
 
-  port: 8080
+  port: 8089
   servlet:
     context-path: /api/v1
 
 spring:
   application:
     name: ticket-service
+  quartz:
+    auto-startup: true
+    startup-delay: 10s
   jta:
-    enabled: true
+    enabled: ${SPRING_JTA_ENABLED:false}
     transaction-manager-id: ticket-tm
     atomikos:
       properties:
@@ -16,26 +19,23 @@ spring:
         log-base-dir: ${TICKET_ATOMIKOS_LOG_DIR:./data/tx-logs/ticket}
         log-base-name: ${TICKET_ATOMIKOS_LOG_BASE_NAME:tmlog-ticket}
   datasource:
+    url: jdbc:postgresql://${TICKET_DB_HOST:localhost}:${TICKET_DB_PORT:5432}/${TICKET_DB_NAME:studs}
+    username: ${TICKET_DB_USER:s409753}
+    password: ${TICKET_DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
     xa:
       data-source-class-name: org.postgresql.xa.PGXADataSource
       properties:
         serverName: ${TICKET_DB_HOST:localhost}
         portNumber: ${TICKET_DB_PORT:5432}
-        databaseName: ${TICKET_DB_NAME:postgres}
-        user: ${TICKET_DB_USER:postgres}
+        databaseName: ${TICKET_DB_NAME:studs}
+        user: ${TICKET_DB_USER:s409753}
         password: ${TICKET_DB_PASSWORD:postgres}
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     open-in-view: false
-    properties:
-      hibernate:
-        transaction:
-          coordinator_class: jta
-      jakarta:
-        persistence:
-          transactionType: JTA
   data:
     web:
       pageable:
@@ -43,14 +43,49 @@ spring:
 
 integration:
   bank:
-    base-url: http://localhost:8083/api/v1
+    base-url: http://localhost:8081/api/v1
     username: service_bank
     password: service123
     connect-timeout: 2s
     read-timeout: 5s
+  bitrix:
+    enabled: ${BITRIX_ENABLED:true}
+    jca:
+      jndi-name: ${BITRIX_JCA_JNDI_NAME:java:/eis/Bitrix24CF}
+      initial-context-factory: ${BITRIX_JCA_INITIAL_CONTEXT_FACTORY:}
+      provider-url: ${BITRIX_JCA_PROVIDER_URL:}
+      security-principal: ${BITRIX_JCA_SECURITY_PRINCIPAL:}
+      security-credentials: ${BITRIX_JCA_SECURITY_CREDENTIALS:}
+      add-operation: ${BITRIX_JCA_ADD_OPERATION:crm.deal.add.json}
+      update-operation: ${BITRIX_JCA_UPDATE_OPERATION:crm.deal.update.json}
+      stage:
+        new: ${BITRIX_JCA_STAGE_NEW:NEW}
+        payment-processing: ${BITRIX_JCA_STAGE_PAYMENT_PROCESSING:PREPAYMENT_INVOICE}
+        paid: ${BITRIX_JCA_STAGE_PAID:WON}
+        declined: ${BITRIX_JCA_STAGE_DECLINED:LOSE}
+        cancelled: ${BITRIX_JCA_STAGE_CANCELLED:LOSE}
+
+kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  producer:
+    client-id: ticket-service-producer
+    acks: all
+    retries: 3
+  consumer:
+    group-id: ticket-service-group
+    auto-offset-reset: earliest
+    enable-auto-commit: false
+    poll-timeout-ms: 1000
+  topics:
+    payment-request: payment-request-topic
+    payment-result: payment-result-topic
+    ds-request: 3ds-request-topic
+    ds-result: 3ds-result-topic
+    retry-request: retry-request-topic
+    retry-response: retry-reponse-topic
 
 security:
-  users-xml: ${TICKET_SECURITY_USERS_XML:file:./data/ticket-users.xml}
+  users-xml: ${TICKET_SECURITY_USERS_XML:classpath:security/users.xml}
   users-template: ${TICKET_SECURITY_USERS_TEMPLATE:classpath:security/users.xml}
 
 cors:
@@ -60,3 +95,10 @@ cors:
   exposed-headers: ${CORS_EXPOSED_HEADERS:Location}
   allow-credentials: ${CORS_ALLOW_CREDENTIALS:false}
   max-age: ${CORS_MAX_AGE:3600}
+
+jobs:
+  order-expiration:
+    scan-interval: ${ORDER_EXPIRATION_SCAN_INTERVAL:30s}
+    created-ttl: ${ORDER_CREATED_TTL:15s}
+    pending-3ds-ttl: ${ORDER_PENDING_3DS_TTL:15s}
+    batch-size: ${ORDER_EXPIRATION_BATCH_SIZE:10}

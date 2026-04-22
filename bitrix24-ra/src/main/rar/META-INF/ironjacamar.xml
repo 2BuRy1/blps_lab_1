@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ironjacamar xmlns="urn:ironjacamar:1.0">
+    <connection-definitions>
+        <connection-definition
+                class-name="com.example.bitrix24.ra.Bitrix24ManagedConnectionFactory"
+                jndi-name="java:/eis/Bitrix24CF"
+                pool-name="Bitrix24CF"
+                enabled="true"
+                use-java-context="true">
+            <config-property name="webhookBaseUrl">https://b24-a0p4gq.bitrix24.ru/rest/1/ea3xpoamp12fr371/</config-property>
+            <config-property name="connectTimeoutMillis">2000</config-property>
+            <config-property name="readTimeoutMillis">5000</config-property>
+        </connection-definition>
+    </connection-definitions>
+</ironjacamar>

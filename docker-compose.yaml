@@ -1,0 +1,91 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+  wildfly-bitrix-ra:
+    build:
+      context: .
+      dockerfile: docker/wildfly-bitrix-ra/Dockerfile
+    container_name: wildfly-bitrix-ra
+    environment:
+      BITRIX_WEBHOOK_BASE_URL: ${BITRIX_WEBHOOK_BASE_URL:-https://b24-a0p4gq.bitrix24.ru/rest/1/ea3xpoamp12fr371/}
+      BITRIX_CONNECT_TIMEOUT_MS: ${BITRIX_CONNECT_TIMEOUT_MS:-2000}
+      BITRIX_READ_TIMEOUT_MS: ${BITRIX_READ_TIMEOUT_MS:-5000}
+      TICKET_DB_HOST: postgres
+      TICKET_DB_PORT: 5432
+      TICKET_DB_NAME: ticket_db
+      TICKET_DB_USER: postgres
+      TICKET_DB_PASSWORD: postgres
+      SPRING_JTA_ENABLED: "false"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ticket_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      BITRIX_ENABLED: "true"
+      BITRIX_JCA_JNDI_NAME: java:/eis/Bitrix24CF
+      BITRIX_JCA_INITIAL_CONTEXT_FACTORY: ""
+      BITRIX_JCA_PROVIDER_URL: ""
+      BITRIX_JCA_SECURITY_PRINCIPAL: ""
+      BITRIX_JCA_SECURITY_CREDENTIALS: ""
+      TICKET_SECURITY_USERS_XML: classpath:security/users.xml
+      TICKET_SECURITY_USERS_TEMPLATE: classpath:security/users.xml
+    ports:
+      - "8088:8080"
+      - "9990:9990"
+    depends_on:
+      - postgres
+      - kafka
+
+  bank-service:
+    build:
+      context: .
+      dockerfile: docker/bank-service/Dockerfile
+    container_name: bank-service
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      BANK_DB_HOST: postgres
+      BANK_DB_PORT: 5432
+      BANK_DB_NAME: bank_db
+      BANK_DB_USER: postgres
+      BANK_DB_PASSWORD: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    ports:
+      - "8081:8081"

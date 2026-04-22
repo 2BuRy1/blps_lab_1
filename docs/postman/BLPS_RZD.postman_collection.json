@@ -293,16 +293,14 @@
           }
         },
         {
-          "name": "Pay order A SUCCESS (CLIENT) -> set ticketA",
+          "name": "Pay order A async start (CLIENT)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
-                  "const json = pm.response.json();",
-                  "pm.environment.set('ticketA', json.ticketId);"
+                  "pm.test('Status is 202', function () { pm.response.to.have.status(202); });"
                 ]
               }
             }
@@ -335,6 +333,41 @@
               "raw": "{\n  \"card_number\": \"4111111111112222\",\n  \"expiration_date\": \"12/30\",\n  \"cvv\": \"123\"\n}"
             },
             "url": "{{ticketBaseUrl}}/orders/{{orderA}}/pay"
+          }
+        },
+        {
+          "name": "Get order A state (CLIENT) -> set ticketA if paid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "if (json.ticket_id) { pm.environment.set('ticketA', json.ticket_id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/orders/{{orderA}}/state"
           }
         },
         {
@@ -432,16 +465,14 @@
           }
         },
         {
-          "name": "Pay order B REQUIRES_3DS (CLIENT) -> set paymentIdB",
+          "name": "Pay order B async start (CLIENT)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 202', function () { pm.response.to.have.status(202); });",
-                  "const json = pm.response.json();",
-                  "pm.environment.set('paymentIdB', json.paymentId);"
+                  "pm.test('Status is 202', function () { pm.response.to.have.status(202); });"
                 ]
               }
             }
@@ -477,7 +508,7 @@
           }
         },
         {
-          "name": "Confirm 3DS order B (CLIENT) -> set ticketB",
+          "name": "Get order B state (CLIENT) -> set paymentIdB if present",
           "event": [
             {
               "listen": "test",
@@ -485,7 +516,41 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.environment.set('ticketB', pm.response.json().ticketId);"
+                  "const json = pm.response.json();",
+                  "if (json.bank_payment_id) { pm.environment.set('paymentIdB', json.bank_payment_id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/orders/{{orderB}}/state"
+          }
+        },
+        {
+          "name": "Confirm 3DS order B async start (CLIENT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 202', function () { pm.response.to.have.status(202); });"
                 ]
               }
             }
@@ -518,6 +583,41 @@
               "raw": "{\n  \"code\": \"123456\"\n}"
             },
             "url": "{{ticketBaseUrl}}/orders/{{orderB}}/pay/confirm-3ds"
+          }
+        },
+        {
+          "name": "Get order B state after 3DS (CLIENT) -> set ticketB if paid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "if (json.ticket_id) { pm.environment.set('ticketB', json.ticket_id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/orders/{{orderB}}/state"
           }
         }
       ]
@@ -582,14 +682,14 @@
           }
         },
         {
-          "name": "Pay order C DECLINED (CLIENT)",
+          "name": "Pay order C async start (CLIENT)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 402', function () { pm.response.to.have.status(402); });"
+                  "pm.test('Status is 202', function () { pm.response.to.have.status(202); });"
                 ]
               }
             }
@@ -622,6 +722,39 @@
               "raw": "{\n  \"card_number\": \"5555555555550000\",\n  \"expiration_date\": \"12/30\",\n  \"cvv\": \"123\"\n}"
             },
             "url": "{{ticketBaseUrl}}/orders/{{orderC}}/pay"
+          }
+        },
+        {
+          "name": "Get order C state (CLIENT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/orders/{{orderC}}/state"
           }
         },
         {
@@ -665,9 +798,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 200 or 202', function () { pm.expect([200, 202]).to.include(pm.response.code); });",
-                  "const json = pm.response.json();",
-                  "if (pm.response.code === 200 && json.ticketId) { pm.environment.set('ticketC', json.ticketId); }"
+                  "pm.test('Status is 202', function () { pm.response.to.have.status(202); });"
                 ]
               }
             }
@@ -700,6 +831,39 @@
               "raw": "{\n  \"card_number\": \"4111111111112222\",\n  \"expiration_date\": \"12/30\",\n  \"cvv\": \"123\"\n}"
             },
             "url": "{{ticketBaseUrl}}/service/orders/{{orderC}}/retry-payment"
+          }
+        },
+        {
+          "name": "Get order C state after retry (CLIENT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{clientUsername}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{clientPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{ticketBaseUrl}}/orders/{{orderC}}/state"
           }
         }
       ]

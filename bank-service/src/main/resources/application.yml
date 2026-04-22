@@ -20,9 +20,9 @@ spring:
       properties:
         serverName: ${BANK_DB_HOST:${TICKET_DB_HOST:localhost}}
         portNumber: ${BANK_DB_PORT:5432}
-        databaseName: ${BANK_DB_NAME:${TICKET_DB_NAME:postgres}}
-        user: ${BANK_DB_USER:${TICKET_DB_USER:postgres}}
-        password: ${BANK_DB_PASSWORD:${TICKET_DB_PASSWORD:postgres}}
+        databaseName: ${BANK_DB_NAME:${TICKET_DB_NAME:studs}}
+        user: ${BANK_DB_USER:${TICKET_DB_USER:s409753}}
+        password: ${BANK_DB_PASSWORD:${TICKET_DB_PASSWORD:}}
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
@@ -35,6 +35,25 @@ spring:
       jakarta:
         persistence:
           transactionType: JTA
+
+kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  producer:
+    client-id: ticket-service-producer
+    acks: all
+    retries: 3
+  consumer:
+    group-id: ticket-service-group
+    auto-offset-reset: earliest
+    enable-auto-commit: false
+    poll-timeout-ms: 1000
+  topics:
+    payment-request: payment-request-topic
+    payment-result: payment-result-topic
+    ds-request: 3ds-request-topic
+    ds-result: 3ds-result-topic
+    retry-request: retry-request-topic
+    retry-response: retry-reponse-topic
 
 security:
   users-xml: classpath:security/users.xml

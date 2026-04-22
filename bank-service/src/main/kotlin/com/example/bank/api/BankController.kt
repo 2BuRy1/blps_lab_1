@@ -14,18 +14,18 @@ class BankController(
     private val bankPaymentService: BankPaymentService,
 ) {
 
-    @PreAuthorize("hasAuthority('BANK_PAY')")
-    @PostMapping("/bank/pay")
-    fun bankPay(@RequestBody request: BankPayRequest): ResponseEntity<BankPayResponse> {
-        return ResponseEntity.ok(bankPaymentService.pay(request))
-    }
-
-    @PreAuthorize("hasAuthority('BANK_PAY')")
-    @PostMapping("/bank/pay/{paymentId}/confirm-3ds")
-    fun confirm3ds(
-        @PathVariable paymentId: String,
-        @RequestBody request: Confirm3dsRequest,
-    ): ResponseEntity<BankPayResponse> {
-        return ResponseEntity.ok(bankPaymentService.confirm3ds(paymentId, request))
-    }
+//    @PreAuthorize("hasAuthority('BANK_PAY')")
+//    @PostMapping("/bank/pay")
+//    fun bankPay(@RequestBody request: BankPayRequest): ResponseEntity<BankPayResponse> {
+//        return ResponseEntity.ok(bankPaymentService.pay(request))
+//    }
+//
+//    @PreAuthorize("hasAuthority('BANK_PAY')")
+//    @PostMapping("/bank/pay/{paymentId}/confirm-3ds")
+//    fun confirm3ds(
+//        @PathVariable paymentId: String,
+//        @RequestBody request: Confirm3dsRequest,
+//    ): ResponseEntity<BankPayResponse> {
+//        return ResponseEntity.ok(bankPaymentService.confirm3ds(paymentId, request))
+//    }
 }
