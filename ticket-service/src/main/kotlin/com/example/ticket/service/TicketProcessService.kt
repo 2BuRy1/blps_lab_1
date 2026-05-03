@@ -37,6 +37,7 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.security.access.prepost.PreAuthorize
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
@@ -62,6 +63,18 @@ class TicketProcessService(
 
     private val readOnlyTxTemplate = TransactionTemplate(transactionManager).apply {
         isReadOnly = true
+    }
+
+    fun validateCreateOrderRequestForWorkflow(request: CreateOrderRequest) {
+        validateCreateOrderRequest(request)
+    }
+
+    fun validatePayOrderRequestForWorkflow(request: PayOrderRequest) {
+        validatePayOrderRequest(request)
+    }
+
+    fun validateConfirm3dsRequestForWorkflow(request: Confirm3dsRequest) {
+        validateConfirm3dsRequest(request)
     }
 
     @PreAuthorize("hasAuthority('ROUTE_VIEW')")
@@ -123,14 +136,22 @@ class TicketProcessService(
 
     @PreAuthorize("hasAuthority('ORDER_CREATE')")
     fun createOrder(request: CreateOrderRequest): OrderCreatedResponse {
+        return createOrderInternal(request)
+    }
+
+    fun createOrderInternal(request: CreateOrderRequest): OrderCreatedResponse {
         return txTemplate.execute {
+            log.info("Create order requested: routeId={}, seat={}, passenger={}", request.routeId, request.seat, request.passenger.fullName)
             validateCreateOrderRequest(request)
 
             val route = routeRepository.findByRouteIdForUpdate(request.routeId)
-                ?: throw NotFoundException(
-                    resource = NotFoundError.Resource.ROUTE,
-                    message = "Route not found.",
-                )
+                ?: run {
+                    log.warn("Create order failed: routeId={} not found", request.routeId)
+                    throw NotFoundException(
+                        resource = NotFoundError.Resource.ROUTE,
+                        message = "Route not found.",
+                    )
+                }
 
             if (route.freeSeats <= 0 || route.reservedSeats >= route.capacity) {
                 throw ConflictException(
@@ -160,6 +181,13 @@ class TicketProcessService(
             route.reservedSeats += 1
             route.freeSeats = (route.freeSeats - 1).coerceAtLeast(0)
             routeRepository.save(route)
+            log.info(
+                "Seat reserved for order creation: routeId={}, seat={}, reservedSeats={}, freeSeats={}",
+                route.routeId,
+                request.seat,
+                route.reservedSeats,
+                route.freeSeats,
+            )
 
             val order = OrderEntity(
                 orderId = nextOrderId(),
@@ -171,8 +199,10 @@ class TicketProcessService(
                 status = OrderStatus.CREATED,
             )
             orderRepository.save(order)
+            log.info("Order persisted: orderId={}, routeId={}, status={}", order.orderId, route.routeId, order.status)
             order.crmDealId = bitrix24OrderSyncService.createDealForOrder(order)
             orderRepository.save(order)
+            log.info("Order synchronized with Bitrix: orderId={}, crmDealId={}", order.orderId, order.crmDealId)
 
             OrderCreatedResponse(
                 orderId = order.orderId,
@@ -184,7 +214,16 @@ class TicketProcessService(
 
     @PreAuthorize("hasAuthority('ORDER_PAY')")
     fun payOrder(orderId: String, request: PayOrderRequest): AsyncOrderOperationAcceptedResponse {
+        return startPaymentForWorkflow(orderId, request, retryMode = false)
+    }
+
+    fun startPaymentForWorkflow(
+        orderId: String,
+        request: PayOrderRequest,
+        retryMode: Boolean,
+    ): AsyncOrderOperationAcceptedResponse {
         return txTemplate.execute {
+            log.info("Payment requested: orderId={}, retryMode={}", orderId, retryMode)
             validatePayOrderRequest(request)
 
             val order = orderRepository.findByOrderIdForUpdate(orderId)
@@ -193,30 +232,74 @@ class TicketProcessService(
                     message = "Order not found.",
                 )
 
-            if (order.status != OrderStatus.CREATED) {
-                throw ConflictException(
-                    code = ConflictError.Code.ORDER_STATE_INVALID,
-                    message = "Order is not in payable state.",
-                )
+            when {
+                retryMode -> {
+                    when (order.status) {
+                        OrderStatus.DECLINED -> reactivateDeclinedOrderForRetry(order)
+                        OrderStatus.CREATED -> {}
+                        OrderStatus.PAYMENT_PROCESSING,
+                        OrderStatus.PENDING_3DS,
+                        OrderStatus.CONFIRMING_3DS,
+                            -> throw ConflictException(
+                            code = ConflictError.Code.ORDER_STATE_INVALID,
+                            message = "Order has active payment flow already.",
+                        )
+
+                        OrderStatus.PAID -> throw ConflictException(
+                            code = ConflictError.Code.ORDER_STATE_INVALID,
+                            message = "Order is already paid.",
+                        )
+
+                        OrderStatus.CANCELLED -> throw ConflictException(
+                            code = ConflictError.Code.ORDER_STATE_INVALID,
+                            message = "Cancelled order cannot be retried.",
+                        )
+                    }
+                }
+
+                order.status != OrderStatus.CREATED -> {
+                    throw ConflictException(
+                        code = ConflictError.Code.ORDER_STATE_INVALID,
+                        message = "Order is not in payable state.",
+                    )
+                }
             }
 
             transitionOrderStatus(order, OrderStatus.PAYMENT_PROCESSING)
             orderRepository.save(order)
-            bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "PAYMENT_STARTED")
+            bitrix24OrderSyncService.syncOrderStateBestEffort(
+                order,
+                event = if (retryMode) "PAYMENT_RETRY_STARTED" else "PAYMENT_STARTED",
+            )
+            log.info("Order moved to PAYMENT_PROCESSING: orderId={}, retryMode={}", order.orderId, retryMode)
 
-            bankGateway.authorize(amount = order.amount, request = request, orderId = order.orderId)
+            if (retryMode) {
+                bankGateway.retryAuthorize(amount = order.amount, request = request, orderId = order.orderId)
+            } else {
+                bankGateway.authorize(amount = order.amount, request = request, orderId = order.orderId)
+            }
+            log.info("Bank authorize dispatched: orderId={}, retryMode={}", order.orderId, retryMode)
 
             AsyncOrderOperationAcceptedResponse(
                 orderId = order.orderId,
-                message = "Payment request accepted. Poll /orders/${order.orderId}/state for result.",
+                message = if (retryMode) {
+                    "Retry payment request accepted. Poll /orders/${order.orderId}/state for result."
+                } else {
+                    "Payment request accepted. Poll /orders/${order.orderId}/state for result."
+                },
             )
         } ?: throw IllegalStateException("Transaction returned null")
     }
 
     @PreAuthorize("hasAuthority('ORDER_PAY')")
     fun confirm3ds(orderId: String, request: Confirm3dsRequest): AsyncOrderOperationAcceptedResponse {
+        return confirm3dsInternal(orderId, request.code)
+    }
+
+    fun confirm3dsInternal(orderId: String, code: String): AsyncOrderOperationAcceptedResponse {
         return txTemplate.execute {
-            validateConfirm3dsRequest(request)
+            log.info("3DS confirmation requested: orderId={}", orderId)
+            validateConfirm3dsRequest(Confirm3dsRequest(code = code))
 
             val order = orderRepository.findByOrderIdForUpdate(orderId)
                 ?: throw NotFoundException(
@@ -226,13 +309,10 @@ class TicketProcessService(
 
             when (order.status) {
                 OrderStatus.PENDING_3DS -> {
-                    // Keep order in pending state for BPMN-compatible compensation semantics.
-                }
-                OrderStatus.CONFIRMING_3DS -> {
-                    // Legacy/stuck state recovery: return to pending before dispatch.
-                    transitionOrderStatus(order, OrderStatus.PENDING_3DS)
+                    transitionOrderStatus(order, OrderStatus.CONFIRMING_3DS)
                     orderRepository.save(order)
                 }
+                OrderStatus.CONFIRMING_3DS -> Unit
                 else -> {
                     throw ConflictException(
                         code = ConflictError.Code.ORDER_STATE_INVALID,
@@ -248,7 +328,8 @@ class TicketProcessService(
                 )
 
             bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "THREE_DS_CONFIRMATION_REQUESTED")
-            bankGateway.confirm3ds(orderId = order.orderId, paymentId = paymentId, code = request.code)
+            bankGateway.confirm3ds(orderId = order.orderId, paymentId = paymentId, code = code)
+            log.info("3DS confirmation forwarded to bank: orderId={}, paymentId={}", order.orderId, paymentId)
 
             AsyncOrderOperationAcceptedResponse(
                 orderId = order.orderId,
@@ -284,6 +365,10 @@ class TicketProcessService(
 
     @PreAuthorize("hasAuthority('ORDER_MANAGE')")
     fun getOrderForManage(orderId: String): ManagedOrderResponse {
+        return getOrderForManageInternal(orderId)
+    }
+
+    fun getOrderForManageInternal(orderId: String): ManagedOrderResponse {
         return readOnlyTxTemplate.execute {
             val order = orderRepository.findById(orderId).orElseThrow {
                 NotFoundException(
@@ -329,7 +414,15 @@ class TicketProcessService(
 
     @PreAuthorize("hasAuthority('ORDER_MANAGE')")
     fun cancelOrder(orderId: String): CancelOrderResponse {
+        return cancelOrderInternal(orderId)
+    }
+
+    fun cancelOrderInternal(
+        orderId: String,
+        event: String = "ORDER_CANCELLED",
+    ): CancelOrderResponse {
         return txTemplate.execute {
+            log.info("Cancel order requested: orderId={}, event={}", orderId, event)
             val order = orderRepository.findByOrderIdForUpdate(orderId)
                 ?: throw NotFoundException(
                     resource = NotFoundError.Resource.ORDER,
@@ -346,7 +439,8 @@ class TicketProcessService(
                     transitionOrderStatus(order, OrderStatus.CANCELLED)
                     order.bankPaymentId = null
                     orderRepository.save(order)
-                    bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "ORDER_CANCELLED")
+                    bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = event)
+                    log.info("Order cancelled: orderId={}, event={}", order.orderId, event)
                 }
 
                 OrderStatus.PAID -> throw ConflictException(
@@ -371,51 +465,41 @@ class TicketProcessService(
 
     @PreAuthorize("hasAuthority('ORDER_MANAGE')")
     fun retryPayment(orderId: String, request: PayOrderRequest): AsyncOrderOperationAcceptedResponse {
-        return txTemplate.execute {
-            validatePayOrderRequest(request)
-
-            val order = orderRepository.findByOrderIdForUpdate(orderId)
-                ?: throw NotFoundException(
-                    resource = NotFoundError.Resource.ORDER,
-                    message = "Order not found.",
-                )
-
-            when (order.status) {
-                OrderStatus.DECLINED -> reactivateDeclinedOrderForRetry(order)
-                OrderStatus.CREATED -> {}
-                OrderStatus.PAYMENT_PROCESSING,
-                OrderStatus.PENDING_3DS,
-                OrderStatus.CONFIRMING_3DS,
-                    -> throw ConflictException(
-                    code = ConflictError.Code.ORDER_STATE_INVALID,
-                    message = "Order has active payment flow already.",
-                )
-
-                OrderStatus.PAID -> throw ConflictException(
-                    code = ConflictError.Code.ORDER_STATE_INVALID,
-                    message = "Order is already paid.",
-                )
-
-                OrderStatus.CANCELLED -> throw ConflictException(
-                    code = ConflictError.Code.ORDER_STATE_INVALID,
-                    message = "Cancelled order cannot be retried.",
-                )
-            }
-
-            transitionOrderStatus(order, OrderStatus.PAYMENT_PROCESSING)
-            orderRepository.save(order)
-            bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "PAYMENT_RETRY_STARTED")
-            bankGateway.retryAuthorize(amount = order.amount, request = request, orderId = order.orderId)
-
-            AsyncOrderOperationAcceptedResponse(
-                orderId = order.orderId,
-                message = "Retry payment request accepted. Poll /orders/${order.orderId}/state for result.",
-            )
-        } ?: throw IllegalStateException("Transaction returned null")
+        return startPaymentForWorkflow(orderId, request, retryMode = true)
     }
 
     @PreAuthorize("hasAuthority('ROUTE_MANAGE')")
     fun updateRouteForManage(routeId: String, request: UpdateRouteManageRequest): ManagedRouteResponse {
+        return updateRouteForManageInternal(routeId, request)
+    }
+
+    fun getRouteForManageInternal(routeId: String): ManagedRouteResponse {
+        return readOnlyTxTemplate.execute {
+            val route = routeRepository.findById(routeId).orElseThrow {
+                NotFoundException(
+                    resource = NotFoundError.Resource.ROUTE,
+                    message = "Route not found.",
+                )
+            }
+
+            ManagedRouteResponse(
+                routeId = route.routeId,
+                from = route.fromCity,
+                to = route.toCity,
+                date = route.travelDate,
+                fromTerminal = route.fromTerminal,
+                toTerminal = route.toTerminal,
+                trainId = route.trainId,
+                departureTime = route.departureTime.toString(),
+                price = route.price,
+                capacity = route.capacity,
+                reservedSeats = route.reservedSeats,
+                freeSeats = route.freeSeats,
+            )
+        } ?: throw IllegalStateException("Transaction returned null")
+    }
+
+    fun updateRouteForManageInternal(routeId: String, request: UpdateRouteManageRequest): ManagedRouteResponse {
         return txTemplate.execute {
             val route = routeRepository.findByRouteIdForUpdate(routeId)
                 ?: throw NotFoundException(
@@ -577,6 +661,7 @@ class TicketProcessService(
         order.ticketId = ticket.ticketId
         orderRepository.save(order)
         bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "TICKET_ISSUED")
+        log.info("Ticket issued: orderId={}, ticketId={}", order.orderId, ticket.ticketId)
 
         return PayOrderSuccessResponse(
             status = PayOrderSuccessResponse.Status.PAID,
@@ -588,6 +673,44 @@ class TicketProcessService(
         transitionOrderStatus(order, OrderStatus.PENDING_3DS)
         order.bankPaymentId = paymentId
         orderRepository.save(order)
+        log.info("Order moved to PENDING_3DS: orderId={}, paymentId={}", order.orderId, paymentId)
+    }
+
+    fun issueTicketInternal(orderId: String): PayOrderSuccessResponse {
+        return txTemplate.execute {
+            val order = orderRepository.findByOrderIdForUpdate(orderId)
+                ?: throw NotFoundException(
+                    resource = NotFoundError.Resource.ORDER,
+                    message = "Order not found.",
+                )
+
+            if (order.status == OrderStatus.PAID && !order.ticketId.isNullOrBlank()) {
+                return@execute PayOrderSuccessResponse(
+                    status = PayOrderSuccessResponse.Status.PAID,
+                    ticketId = order.ticketId!!,
+                )
+            }
+
+            if (order.status == OrderStatus.CANCELLED || order.status == OrderStatus.DECLINED) {
+                throw ConflictException(
+                    code = ConflictError.Code.ORDER_STATE_INVALID,
+                    message = "Inactive order cannot be issued.",
+                )
+            }
+
+            issueTicket(order)
+        } ?: throw IllegalStateException("Transaction returned null")
+    }
+
+    fun markOrderPending3dsInternal(orderId: String, paymentId: String) {
+        txTemplate.executeWithoutResult {
+            val order = orderRepository.findByOrderIdForUpdate(orderId) ?: return@executeWithoutResult
+            if (order.status == OrderStatus.PAID || order.status == OrderStatus.CANCELLED) {
+                return@executeWithoutResult
+            }
+            markOrderPending3ds(order, paymentId)
+            bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "THREE_DS_REQUIRED")
+        }
     }
 
     fun compensateDeclinedOrder(order: OrderEntity) {
@@ -606,9 +729,18 @@ class TicketProcessService(
         order.bankPaymentId = null
         orderRepository.save(order)
         bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "PAYMENT_DECLINED")
+        log.info("Order declined and compensated: orderId={}", order.orderId)
+    }
+
+    fun compensateDeclinedOrderInternal(orderId: String) {
+        txTemplate.executeWithoutResult {
+            val order = orderRepository.findByOrderIdForUpdate(orderId) ?: return@executeWithoutResult
+            compensateDeclinedOrder(order)
+        }
     }
 
     fun reactivateDeclinedOrderForRetry(order: OrderEntity) {
+        log.info("Reactivating declined order for retry: orderId={}, routeId={}", order.orderId, order.route.routeId)
         val route = routeRepository.findByRouteIdForUpdate(order.route.routeId)
             ?: throw NotFoundException(
                 resource = NotFoundError.Resource.ROUTE,
@@ -649,6 +781,7 @@ class TicketProcessService(
         order.ticketId = null
         orderRepository.save(order)
         bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "ORDER_REACTIVATED_FOR_RETRY")
+        log.info("Declined order reactivated for retry: orderId={}", order.orderId)
     }
 
     fun cancelExpiredOrder(orderId: String, expectedStatus: OrderStatus, event: String): Boolean {
@@ -681,9 +814,14 @@ class TicketProcessService(
 
     private fun transitionOrderStatus(order: OrderEntity, newStatus: OrderStatus) {
         if (order.status != newStatus) {
+            log.info("Order status transition: orderId={}, from={}, to={}", order.orderId, order.status, newStatus)
             order.status = newStatus
         }
         order.statusUpdatedAt = Instant.now(clock)
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(TicketProcessService::class.java)
     }
 
     private fun routeSpecification(criteria: RouteSearchCriteria): Specification<RouteEntity> {

@@ -1,0 +1,13 @@
+{
+  "id": "client-entry",
+  "type": "default",
+  "schemaVersion": 12,
+  "components": [
+    {
+      "label": "Registered User",
+      "type": "checkbox",
+      "key": "registeredUser",
+      "defaultValue": true
+    }
+  ]
+}

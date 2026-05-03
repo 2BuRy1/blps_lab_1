@@ -1,0 +1,39 @@
+{
+  "id": "client-passenger",
+  "type": "default",
+  "schemaVersion": 12,
+  "components": [
+    {
+      "label": "Validation error",
+      "type": "html",
+      "content": "<div style=\"position: fixed; right: 24px; bottom: 24px; max-width: 360px; padding: 12px; border-radius: 6px; background: red; color: white; white-space: normal;\">{{validationError}}</div>",
+      "conditional": {
+        "hide": "=validationError = null or validationError = \"\""
+      }
+    },
+    {
+      "label": "Full Name",
+      "type": "textfield",
+      "key": "passengerFullName",
+      "validate": {
+        "required": true,
+        "maxLength": 255
+      }
+    },
+    {
+      "label": "Passport ID",
+      "type": "textfield",
+      "key": "passengerPassportId"
+    },
+    {
+      "label": "Email",
+      "type": "textfield",
+      "key": "email"
+    },
+    {
+      "label": "Phone",
+      "type": "textfield",
+      "key": "phone"
+    }
+  ]
+}

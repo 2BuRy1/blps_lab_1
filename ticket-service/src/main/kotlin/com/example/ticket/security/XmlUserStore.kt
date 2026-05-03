@@ -32,6 +32,10 @@ class XmlUserStore(
         readUsersUnsafe().users.firstOrNull { it.username.equals(normalized, ignoreCase = true) }
     }
 
+    fun findAll(): List<XmlUser> = synchronized(monitor) {
+        readUsersUnsafe().users
+    }
+
     fun registerClient(username: String, encodedPassword: String): XmlUser = synchronized(monitor) {
         val normalized = username.trim()
         val users = readUsersUnsafe()
@@ -119,7 +123,6 @@ class XmlUserStore(
             return runCatching {
                 Paths.get(URI.create(usersXmlLocation))
             }.getOrElse {
-                // Supports relative form like file:./data/ticket-users.xml
                 Paths.get(usersXmlLocation.removePrefix("file:"))
             }
         }

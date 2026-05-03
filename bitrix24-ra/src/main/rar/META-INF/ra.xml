@@ -18,7 +18,7 @@
                 <config-property>
                     <config-property-name>webhookBaseUrl</config-property-name>
                     <config-property-type>java.lang.String</config-property-type>
-                    <config-property-value>https://b24-a0p4gq.bitrix24.ru/rest/1/ea3xpoamp12fr371/</config-property-value>
+                    <config-property-value>https://b24-a0p4gq.bitrix24.ru/rest/17/we34lz732rxm6e6z/</config-property-value>
                 </config-property>
                 <config-property>
                     <config-property-name>connectTimeoutMillis</config-property-name>

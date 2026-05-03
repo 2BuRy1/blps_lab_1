@@ -1,7 +1,7 @@
 FROM quay.io/wildfly/wildfly:31.0.1.Final-jdk17
 
 ENV WILDFLY_HOME=/opt/jboss/wildfly
-ENV BITRIX_WEBHOOK_BASE_URL=https://b24-a0p4gq.bitrix24.ru/rest/1/ea3xpoamp12fr371/
+ENV BITRIX_WEBHOOK_BASE_URL=https://b24-a0p4gq.bitrix24.ru/rest/17/we34lz732rxm6e6z/
 ENV BITRIX_CONNECT_TIMEOUT_MS=2000
 ENV BITRIX_READ_TIMEOUT_MS=5000
 

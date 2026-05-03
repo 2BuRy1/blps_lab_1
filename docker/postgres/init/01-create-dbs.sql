@@ -1,2 +1,0 @@
-CREATE DATABASE ticket_db;
-CREATE DATABASE bank_db;

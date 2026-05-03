@@ -1,0 +1,45 @@
+{
+  "id": "client-register",
+  "type": "default",
+  "schemaVersion": 12,
+  "components": [
+    {
+      "label": "Validation error",
+      "type": "html",
+      "content": "<div style=\"position: fixed; right: 24px; bottom: 24px; max-width: 360px; padding: 12px; border-radius: 6px; background: red; color: white; white-space: normal;\">{{validationError}}</div>",
+      "conditional": {
+        "hide": "=validationError = null or validationError = \"\""
+      }
+    },
+    {
+      "label": "Registration error",
+      "type": "textfield",
+      "key": "authenticationError",
+      "readonly": true
+    },
+    {
+      "label": "Username",
+      "type": "textfield",
+      "key": "username",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Password",
+      "type": "textfield",
+      "key": "password",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Repeat Password",
+      "type": "textfield",
+      "key": "passwordRepeat",
+      "validate": {
+        "required": true
+      }
+    }
+  ]
+}

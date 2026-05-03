@@ -41,6 +41,17 @@ class GlobalExceptionHandler {
             .body(ConflictError(code = ex.code, message = ex.message ?: "Conflict."))
     }
 
+    @ExceptionHandler(WorkflowCorrelationException::class)
+    fun handleWorkflowConflict(ex: WorkflowCorrelationException): ResponseEntity<ConflictError> {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(
+                ConflictError(
+                    code = ConflictError.Code.ORDER_STATE_INVALID,
+                    message = ex.message ?: "Workflow state does not allow this operation.",
+                )
+            )
+    }
+
     @ExceptionHandler(PaymentDeclinedException::class)
     fun handlePaymentDeclined(ex: PaymentDeclinedException): ResponseEntity<PaymentDeclinedError> {
         return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)

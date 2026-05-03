@@ -1,14 +1,12 @@
 server:
 
   port: 8089
-  servlet:
-    context-path: /api/v1
 
 spring:
   application:
     name: ticket-service
   quartz:
-    auto-startup: true
+    auto-startup: false
     startup-delay: 10s
   jta:
     enabled: ${SPRING_JTA_ENABLED:false}
@@ -19,18 +17,16 @@ spring:
         log-base-dir: ${TICKET_ATOMIKOS_LOG_DIR:./data/tx-logs/ticket}
         log-base-name: ${TICKET_ATOMIKOS_LOG_BASE_NAME:tmlog-ticket}
   datasource:
-    url: jdbc:postgresql://${TICKET_DB_HOST:localhost}:${TICKET_DB_PORT:5432}/${TICKET_DB_NAME:studs}
-    username: ${TICKET_DB_USER:s409753}
-    password: ${TICKET_DB_PASSWORD:}
+    url: jdbc:postgresql://${TICKET_DB_HOST:localhost}:${TICKET_DB_PORT:5432}/studs
+    username: ""
+    password: ""
     driver-class-name: org.postgresql.Driver
     xa:
       data-source-class-name: org.postgresql.xa.PGXADataSource
       properties:
         serverName: ${TICKET_DB_HOST:localhost}
         portNumber: ${TICKET_DB_PORT:5432}
-        databaseName: ${TICKET_DB_NAME:studs}
-        user: ${TICKET_DB_USER:s409753}
-        password: ${TICKET_DB_PASSWORD:postgres}
+        databaseName: studs
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
@@ -40,6 +36,23 @@ spring:
     web:
       pageable:
         sort-parameter: pageSort
+
+camunda:
+  bpm:
+    admin-user:
+      id: ${CAMUNDA_ADMIN_USER:demo}
+      password: ${CAMUNDA_ADMIN_PASSWORD:demo}
+      first-name: ${CAMUNDA_ADMIN_FIRST_NAME:Demo}
+    filter:
+      create: All tasks
+    history-level: full
+    database:
+      schema-update: "true"
+    authorization:
+      enabled: true
+  client:
+    payment-result-wait-timeout: ${CAMUNDA_CLIENT_PAYMENT_RESULT_WAIT_TIMEOUT:30s}
+    payment-result-poll-interval: ${CAMUNDA_CLIENT_PAYMENT_RESULT_POLL_INTERVAL:250ms}
 
 integration:
   bank:
@@ -85,7 +98,7 @@ kafka:
     retry-response: retry-reponse-topic
 
 security:
-  users-xml: ${TICKET_SECURITY_USERS_XML:classpath:security/users.xml}
+  users-xml: ${TICKET_SECURITY_USERS_XML:file:./data/ticket-users.xml}
   users-template: ${TICKET_SECURITY_USERS_TEMPLATE:classpath:security/users.xml}
 
 cors:
@@ -99,6 +112,6 @@ cors:
 jobs:
   order-expiration:
     scan-interval: ${ORDER_EXPIRATION_SCAN_INTERVAL:30s}
-    created-ttl: ${ORDER_CREATED_TTL:15s}
-    pending-3ds-ttl: ${ORDER_PENDING_3DS_TTL:15s}
+    created-ttl: ${ORDER_CREATED_TTL:15m}
+    pending-3ds-ttl: ${ORDER_PENDING_3DS_TTL:10m}
     batch-size: ${ORDER_EXPIRATION_BATCH_SIZE:10}

@@ -5,9 +5,11 @@ import com.example.ticket.api.LoginResponse
 import com.example.ticket.api.RegisterRequest
 import com.example.ticket.api.RegisterResponse
 import com.example.ticket.api.ValidationDetail
+import com.example.ticket.bpm.CamundaIdentitySyncService
 import com.example.ticket.exception.ConflictException
 import com.example.ticket.exception.ValidationException
 import com.example.ticket.security.XmlUserStore
+import org.springframework.context.annotation.Lazy
 import org.springframework.security.core.Authentication
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -16,6 +18,8 @@ import org.springframework.stereotype.Service
 class AuthService(
     private val xmlUserStore: XmlUserStore,
     private val passwordEncoder: PasswordEncoder,
+    @Lazy
+    private val camundaIdentitySyncService: CamundaIdentitySyncService,
 ) {
 
     fun register(request: RegisterRequest): RegisterResponse {
@@ -44,6 +48,7 @@ class AuthService(
             }
             throw ex
         }
+        camundaIdentitySyncService.syncUser(created, request.password)
 
         return RegisterResponse(
             username = created.username,
@@ -70,14 +75,45 @@ class AuthService(
         )
     }
 
+    fun verifyClientCredentials(username: String, password: String): LoginResponse {
+        val normalizedUsername = username.trim()
+        val user = xmlUserStore.findByUsername(normalizedUsername)
+            ?: throw ValidationException(
+                details = listOf(ValidationDetail("username", "unknown user")),
+            )
+
+        if (!passwordEncoder.matches(password, user.password)) {
+            throw ValidationException(
+                details = listOf(ValidationDetail("password", "invalid credentials")),
+            )
+        }
+
+        val roles = user.roles.split(',')
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .sorted()
+
+        if ("CLIENT" !in roles) {
+            throw ValidationException(
+                details = listOf(ValidationDetail("username", "user is not allowed to start client order flow")),
+            )
+        }
+
+        return LoginResponse(
+            username = user.username,
+            roles = roles,
+            privileges = emptyList(),
+        )
+    }
+
     private fun validateRegistrationRequest(request: RegisterRequest) {
         val details = mutableListOf<ValidationDetail>()
-        val usernameRegex = Regex("^[a-zA-Z0-9._-]{3,64}$")
+        val usernameRegex = Regex("^[a-zA-Z0-9]{3,64}$")
 
         if (!request.username.matches(usernameRegex)) {
             details += ValidationDetail(
                 field = "username",
-                issue = "must be 3-64 chars and contain only letters, digits, '.', '_' or '-'",
+                issue = "must be 3-64 chars and contain only letters or digits",
             )
         }
         if (request.password.length < 8 || request.password.length > 128) {

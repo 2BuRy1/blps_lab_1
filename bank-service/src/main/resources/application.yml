@@ -18,11 +18,11 @@ spring:
     xa:
       data-source-class-name: org.postgresql.xa.PGXADataSource
       properties:
-        serverName: ${BANK_DB_HOST:${TICKET_DB_HOST:localhost}}
+        serverName: ${BANK_DB_HOST:localhost}
         portNumber: ${BANK_DB_PORT:5432}
-        databaseName: ${BANK_DB_NAME:${TICKET_DB_NAME:studs}}
-        user: ${BANK_DB_USER:${TICKET_DB_USER:s409753}}
-        password: ${BANK_DB_PASSWORD:${TICKET_DB_PASSWORD:}}
+        databaseName: studs
+        user: ""
+        password: ""
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:

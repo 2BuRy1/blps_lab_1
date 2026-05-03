@@ -7,7 +7,7 @@
                 pool-name="Bitrix24CF"
                 enabled="true"
                 use-java-context="true">
-            <config-property name="webhookBaseUrl">https://b24-a0p4gq.bitrix24.ru/rest/1/ea3xpoamp12fr371/</config-property>
+            <config-property name="webhookBaseUrl">https://b24-a0p4gq.bitrix24.ru/rest/17/we34lz732rxm6e6z/</config-property>
             <config-property name="connectTimeoutMillis">2000</config-property>
             <config-property name="readTimeoutMillis">5000</config-property>
         </connection-definition>

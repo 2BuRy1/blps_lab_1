@@ -4,11 +4,12 @@ import com.example.ticket.api.ConflictError
 import com.example.ticket.api.IntegrationUnavailableError
 import com.example.ticket.api.NotFoundError
 import com.example.ticket.api.ValidationDetail
+import java.io.Serializable
 
 class ValidationException(
     val details: List<ValidationDetail>,
     message: String = "Invalid request.",
-) : RuntimeException(message)
+) : RuntimeException(message), Serializable
 
 class NotFoundException(
     val resource: NotFoundError.Resource,

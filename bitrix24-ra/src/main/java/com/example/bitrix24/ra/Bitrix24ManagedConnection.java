@@ -32,14 +32,10 @@ public class Bitrix24ManagedConnection implements ManagedConnection {
     }
 
     @Override
-    public void destroy() {
-        // no-op
-    }
+    public void destroy() {}
 
     @Override
-    public void cleanup() {
-        // no-op
-    }
+    public void cleanup() {}
 
     @Override
     public void associateConnection(Object connection) throws ResourceException {

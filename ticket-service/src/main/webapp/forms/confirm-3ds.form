@@ -1,0 +1,24 @@
+{
+  "id": "confirm-3ds",
+  "type": "default",
+  "schemaVersion": 12,
+  "components": [
+    {
+      "label": "Validation error",
+      "type": "html",
+      "content": "<div style=\"position: fixed; right: 24px; bottom: 24px; max-width: 360px; padding: 12px; border-radius: 6px; background: red; color: white; white-space: normal;\">{{validationError}}</div>",
+      "conditional": {
+        "hide": "=validationError = null or validationError = \"\""
+      }
+    },
+    {
+      "label": "3DS Code",
+      "type": "textfield",
+      "key": "threeDsCode",
+      "validate": {
+        "pattern": "^\\d{6}$",
+        "maxLength": 6
+      }
+    }
+  ]
+}

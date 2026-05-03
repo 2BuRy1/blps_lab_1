@@ -16,14 +16,23 @@ class Bitrix24OrderSyncService(
 
     fun createDealForOrder(order: OrderEntity): Long? {
         if (!enabled) {
+            log.info("Bitrix24 integration disabled, skip create deal for orderId={}", order.orderId)
             return null
         }
 
-        return bitrix24JcaClient.createDeal(payloadFrom(order, event = "ORDER_CREATED"))
+        log.info("Bitrix24 create deal started: orderId={}", order.orderId)
+        return runCatching {
+            bitrix24JcaClient.createDeal(payloadFrom(order, event = "ORDER_CREATED"))
+        }.onSuccess { dealId ->
+            log.info("Bitrix24 create deal finished: orderId={}, dealId={}", order.orderId, dealId)
+        }.onFailure { ex ->
+            log.error("Bitrix24 create deal failed: orderId={}, reason={}", order.orderId, ex.message, ex)
+        }.getOrNull()
     }
 
     fun syncOrderStateBestEffort(order: OrderEntity, event: String) {
         if (!enabled) {
+            log.info("Bitrix24 integration disabled, skip sync for orderId={}, event={}", order.orderId, event)
             return
         }
 
@@ -34,7 +43,9 @@ class Bitrix24OrderSyncService(
         }
 
         runCatching {
+            log.info("Bitrix24 sync started: orderId={}, dealId={}, event={}", order.orderId, dealId, event)
             bitrix24JcaClient.updateDeal(dealId, payloadFrom(order, event = event))
+            log.info("Bitrix24 sync finished: orderId={}, dealId={}, event={}", order.orderId, dealId, event)
         }.onFailure { ex ->
             log.error(
                 "Bitrix24 sync failed for orderId={}, dealId={}, event={}: {}",

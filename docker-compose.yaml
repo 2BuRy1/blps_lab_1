@@ -3,8 +3,9 @@ services:
     image: postgres:16
     container_name: postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ""
+      POSTGRES_PASSWORD: ""
+      POSTGRES_DB: studs
     ports:
       - "5432:5432"
     volumes:
@@ -43,31 +44,33 @@ services:
       dockerfile: docker/wildfly-bitrix-ra/Dockerfile
     container_name: wildfly-bitrix-ra
     environment:
-      BITRIX_WEBHOOK_BASE_URL: ${BITRIX_WEBHOOK_BASE_URL:-https://b24-a0p4gq.bitrix24.ru/rest/1/ea3xpoamp12fr371/}
+      BITRIX_WEBHOOK_BASE_URL: ${BITRIX_WEBHOOK_BASE_URL:-https://b24-a0p4gq.bitrix24.ru/rest/17/we34lz732rxm6e6z/}
       BITRIX_CONNECT_TIMEOUT_MS: ${BITRIX_CONNECT_TIMEOUT_MS:-2000}
       BITRIX_READ_TIMEOUT_MS: ${BITRIX_READ_TIMEOUT_MS:-5000}
       TICKET_DB_HOST: postgres
       TICKET_DB_PORT: 5432
-      TICKET_DB_NAME: ticket_db
-      TICKET_DB_USER: postgres
-      TICKET_DB_PASSWORD: postgres
+      TICKET_DB_NAME: studs
+      TICKET_DB_USER: ""
+      TICKET_DB_PASSWORD: ""
       SPRING_JTA_ENABLED: "false"
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ticket_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/studs
+      SPRING_DATASOURCE_USERNAME: ""
+      SPRING_DATASOURCE_PASSWORD: ""
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      BITRIX_ENABLED: "true"
+      BITRIX_ENABLED: "false"
       BITRIX_JCA_JNDI_NAME: java:/eis/Bitrix24CF
       BITRIX_JCA_INITIAL_CONTEXT_FACTORY: ""
       BITRIX_JCA_PROVIDER_URL: ""
       BITRIX_JCA_SECURITY_PRINCIPAL: ""
       BITRIX_JCA_SECURITY_CREDENTIALS: ""
-      TICKET_SECURITY_USERS_XML: classpath:security/users.xml
+      TICKET_SECURITY_USERS_XML: file:/tmp/ticket-data/ticket-users.xml
       TICKET_SECURITY_USERS_TEMPLATE: classpath:security/users.xml
     ports:
       - "8088:8080"
       - "9990:9990"
+    volumes:
+      - ./data:/tmp/ticket-data
     depends_on:
       - postgres
       - kafka
@@ -83,9 +86,9 @@ services:
     environment:
       BANK_DB_HOST: postgres
       BANK_DB_PORT: 5432
-      BANK_DB_NAME: bank_db
-      BANK_DB_USER: postgres
-      BANK_DB_PASSWORD: postgres
+      BANK_DB_NAME: studs
+      BANK_DB_USER: ""
+      BANK_DB_PASSWORD: ""
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     ports:
       - "8081:8081"

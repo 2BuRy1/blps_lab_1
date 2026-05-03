@@ -1,0 +1,79 @@
+{
+  "id": "route-manage",
+  "type": "default",
+  "schemaVersion": 12,
+  "components": [
+    {
+      "label": "Validation error",
+      "type": "html",
+      "content": "<div style=\"position: fixed; right: 24px; bottom: 24px; max-width: 360px; padding: 12px; border-radius: 6px; background: red; color: white; white-space: normal;\">{{validationError}}</div>",
+      "conditional": {
+        "hide": "=validationError = null or validationError = \"\""
+      }
+    },
+    {
+      "label": "Route ID (обязательно)",
+      "type": "textfield",
+      "key": "routeId",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Откуда / From",
+      "type": "textfield",
+      "key": "from"
+    },
+    {
+      "label": "Куда / To",
+      "type": "textfield",
+      "key": "to"
+    },
+    {
+      "label": "Дата YYYY-MM-DD",
+      "type": "textfield",
+      "key": "date",
+      "validate": {
+        "pattern": "^$|^\\d{4}-\\d{2}-\\d{2}$"
+      }
+    },
+    {
+      "label": "Терминал отправления",
+      "type": "textfield",
+      "key": "fromTerminal"
+    },
+    {
+      "label": "Терминал прибытия",
+      "type": "textfield",
+      "key": "toTerminal"
+    },
+    {
+      "label": "Train ID",
+      "type": "textfield",
+      "key": "trainId"
+    },
+    {
+      "label": "Время отправления HH:mm или HH:mm:ss",
+      "type": "textfield",
+      "key": "departureTime",
+      "validate": {
+        "pattern": "^$|^\\d{2}:\\d{2}(:\\d{2})?$"
+      }
+    },
+    {
+      "label": "Цена",
+      "type": "number",
+      "key": "price"
+    },
+    {
+      "label": "Вместимость",
+      "type": "number",
+      "key": "capacity"
+    },
+    {
+      "label": "Свободные места",
+      "type": "number",
+      "key": "freeSeats"
+    }
+  ]
+}
