@@ -8,4 +8,5 @@
   <user password="{bcrypt}$2a$10$UYLHI/Ey.BPTVKlDtsrsBeRd7IWEBdEtjAM8I.yRdeCRCobcG6RNe" roles="CLIENT" username="lol"/>
   <user password="{bcrypt}$2a$10$At5BlEBnLxWqx8mTS.eiGuXo9uJRM7Bf3r0EtHNmHgRnJwaoJK4wu" roles="CLIENT" username="client2"/>
   <user password="{bcrypt}$2a$10$OjUsOitZGCgijSFzeg5uXedNCw92GrydnN.hLrjkRrsYcUpFTcP6y" roles="CLIENT" username="client3"/>
+
 </users>

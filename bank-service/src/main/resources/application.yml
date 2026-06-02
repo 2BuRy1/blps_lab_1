@@ -23,6 +23,7 @@ spring:
         databaseName: studs
         user: ""
         password: ""
+
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:

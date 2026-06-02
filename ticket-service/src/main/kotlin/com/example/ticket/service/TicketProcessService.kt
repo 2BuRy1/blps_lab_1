@@ -800,6 +800,22 @@ class TicketProcessService(
         } ?: false
     }
 
+    fun cancelExpiredOrder(orderId: String, expectedStatus: OrderStatus, event: String): Boolean {
+        return txTemplate.execute {
+            val order = orderRepository.findByOrderIdForUpdate(orderId) ?: return@execute false
+            if (order.status != expectedStatus) {
+                return@execute false
+            }
+
+            releaseReservedSeat(order)
+            transitionOrderStatus(order, OrderStatus.CANCELLED)
+            order.bankPaymentId = null
+            orderRepository.save(order)
+            bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = event)
+            true
+        } ?: false
+    }
+
     private fun releaseReservedSeat(order: OrderEntity) {
         val route = routeRepository.findByRouteIdForUpdate(order.route.routeId)
             ?: throw NotFoundException(
