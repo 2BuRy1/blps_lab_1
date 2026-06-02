@@ -15,8 +15,19 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
+import java.util.logging.Logger;
 
 public class Bitrix24InteractionImpl implements Interaction {
+    private static final Logger log = Logger.getLogger(Bitrix24InteractionImpl.class.getName());
+    private static final String FIELD_OPERATION = "operation";
+    private static final String FIELD_PATH = "path";
+    private static final String FIELD_BODY = "body";
+    private static final String FIELD_PAYLOAD = "payload";
+    private static final String FIELD_STATUS_CODE = "statusCode";
+    private static final String CONTENT_TYPE_JSON = "application/json";
+    private static final String DEFAULT_PAYLOAD = "{}";
+    private static final int DEFAULT_CONNECT_TIMEOUT_MILLIS = 2000;
+    private static final int DEFAULT_READ_TIMEOUT_MILLIS = 5000;
 
     private final Bitrix24ConnectionImpl connection;
     private final Bitrix24ManagedConnectionFactory mcf;
@@ -43,12 +54,7 @@ public class Bitrix24InteractionImpl implements Interaction {
         if (!(output instanceof MappedRecord<?, ?> mappedOut) || !(result instanceof MappedRecord<?, ?> mappedResult)) {
             throw new ResourceException("MappedRecord input/output is required");
         }
-        mappedOut.clear();
-        @SuppressWarnings("unchecked")
-        Map<Object, Object> out = (Map<Object, Object>) mappedOut;
-        for (Object key : mappedResult.keySet()) {
-            out.put(key, mappedResult.get(key));
-        }
+        copyMappedRecord(mappedResult, mappedOut);
         return true;
     }
 
@@ -61,27 +67,23 @@ public class Bitrix24InteractionImpl implements Interaction {
             throw new ResourceException("MappedRecord input is required");
         }
 
-        String operation = asString(mappedInput.get("operation"), asString(mappedInput.get("path"), null));
-        String body = asString(mappedInput.get("body"), asString(mappedInput.get("payload"), "{}"));
-
+        String operation = extractOperation(mappedInput);
         if (operation == null || operation.isBlank()) {
             throw new ResourceException("Request field 'operation' is required");
         }
 
+        String body = extractBody(mappedInput);
         String baseUrl = normalizeBaseUrl(mcf.getWebhookBaseUrl());
         String targetUrl = baseUrl + operation;
+        int connectTimeout = Math.max(1, valueOrDefault(mcf.getConnectTimeoutMillis(), DEFAULT_CONNECT_TIMEOUT_MILLIS));
+        int readTimeout = Math.max(1, valueOrDefault(mcf.getReadTimeoutMillis(), DEFAULT_READ_TIMEOUT_MILLIS));
 
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofMillis(Math.max(1, valueOrDefault(mcf.getConnectTimeoutMillis(), 2000))))
-                .build();
+        log.info(() -> "Bitrix24 RA execute: targetUrl=" + targetUrl
+                + ", connectTimeoutMs=" + connectTimeout
+                + ", readTimeoutMs=" + readTimeout);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(targetUrl))
-                .timeout(Duration.ofMillis(Math.max(1, valueOrDefault(mcf.getReadTimeoutMillis(), 5000))))
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+        HttpClient client = buildClient(connectTimeout);
+        HttpRequest request = buildRequest(targetUrl, readTimeout, body);
 
         HttpResponse<String> response;
         try {
@@ -94,8 +96,10 @@ public class Bitrix24InteractionImpl implements Interaction {
         }
 
         Bitrix24MappedRecord result = new Bitrix24MappedRecord("bitrixResponse");
-        result.put("statusCode", response.statusCode());
+        result.put(FIELD_STATUS_CODE, response.statusCode());
         result.put("body", response.body() == null ? "" : response.body());
+
+        log.info(() -> "Bitrix24 RA response: statusCode=" + response.statusCode());
 
         if (response.statusCode() >= 400) {
             throw new ResourceException("Bitrix24 returned HTTP " + response.statusCode() + ": " + response.body());
@@ -110,9 +114,7 @@ public class Bitrix24InteractionImpl implements Interaction {
     }
 
     @Override
-    public void clearWarnings() {
-        // no-op
-    }
+    public void clearWarnings() {}
 
     private void ensureOpen() throws ResourceException {
         if (closed) {
@@ -126,6 +128,39 @@ public class Bitrix24InteractionImpl implements Interaction {
         }
         String normalized = baseUrl.trim();
         return normalized.endsWith("/") ? normalized : normalized + "/";
+    }
+
+    private String extractOperation(MappedRecord<?, ?> mappedInput) {
+        return asString(mappedInput.get(FIELD_OPERATION), asString(mappedInput.get(FIELD_PATH), null));
+    }
+
+    private String extractBody(MappedRecord<?, ?> mappedInput) {
+        return asString(mappedInput.get(FIELD_BODY), asString(mappedInput.get(FIELD_PAYLOAD), DEFAULT_PAYLOAD));
+    }
+
+    private HttpClient buildClient(int connectTimeoutMillis) {
+        return HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(connectTimeoutMillis))
+                .build();
+    }
+
+    private HttpRequest buildRequest(String targetUrl, int readTimeoutMillis, String body) {
+        return HttpRequest.newBuilder()
+                .uri(URI.create(targetUrl))
+                .timeout(Duration.ofMillis(readTimeoutMillis))
+                .header("Content-Type", CONTENT_TYPE_JSON)
+                .header("Accept", CONTENT_TYPE_JSON)
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+    }
+
+    private void copyMappedRecord(MappedRecord<?, ?> source, MappedRecord<?, ?> target) {
+        target.clear();
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> out = (Map<Object, Object>) target;
+        for (Object key : source.keySet()) {
+            out.put(key, source.get(key));
+        }
     }
 
     private String asString(Object value, String fallback) {

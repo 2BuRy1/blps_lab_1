@@ -1,3 +1,4 @@
+import org.gradle.api.file.DuplicatesStrategy
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -28,6 +29,7 @@ configurations {
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
         exclude(group = "ch.qos.logback", module = "logback-classic")
         exclude(group = "ch.qos.logback", module = "logback-core")
+        exclude(group = "org.glassfish.jersey.ext", module = "jersey-spring6")
     }
 }
 
@@ -37,6 +39,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-quartz")
+    implementation("org.camunda.bpm.springboot:camunda-bpm-spring-boot-starter-webapp:7.24.0")
+    implementation("org.glassfish.jersey.inject:jersey-hk2:3.1.9")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.openapitools:jackson-databind-nullable:0.2.6")
@@ -98,4 +102,14 @@ tasks.withType<Test> {
 
 tasks.named("compileKotlin") {
     dependsOn("openApiGenerate")
+}
+
+tasks.named<ProcessResources>("processResources") {
+    from("../rzhd_process.bpmn") {
+        into("processes")
+    }
+}
+
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootWar>("bootWar") {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }

@@ -1,0 +1,57 @@
+{
+  "id": "service-request",
+  "type": "default",
+  "schemaVersion": 12,
+  "components": [
+    {
+      "label": "Validation error",
+      "type": "html",
+      "content": "<div style=\"position: fixed; right: 24px; bottom: 24px; max-width: 360px; padding: 12px; border-radius: 6px; background: red; color: white; white-space: normal;\">{{validationError}}</div>",
+      "conditional": {
+        "hide": "=validationError = null or validationError = \"\""
+      }
+    },
+    {
+      "label": "Тип операции: CANCEL_ORDER | RETRY_PAYMENT",
+      "type": "textfield",
+      "key": "requestType",
+      "validate": {
+        "required": true,
+        "pattern": "^(CANCEL_ORDER|RETRY_PAYMENT)$"
+      }
+    },
+    {
+      "label": "Order ID вида o... (обязательно для всех операторских операций)",
+      "type": "textfield",
+      "key": "orderId",
+      "validate": {
+        "required": true,
+        "pattern": "^o[0-9a-f]{12}$"
+      }
+    },
+    {
+      "label": "Номер карты (только для RETRY_PAYMENT)",
+      "type": "textfield",
+      "key": "cardNumber",
+      "validate": {
+        "pattern": "^$|^\\d{16}$"
+      }
+    },
+    {
+      "label": "Срок действия MM/YY (только для RETRY_PAYMENT)",
+      "type": "textfield",
+      "key": "expirationDate",
+      "validate": {
+        "pattern": "^$|^\\d{2}/\\d{2}$"
+      }
+    },
+    {
+      "label": "CVV (только для RETRY_PAYMENT)",
+      "type": "textfield",
+      "key": "cvv",
+      "validate": {
+        "pattern": "^$|^\\d{3}$"
+      }
+    }
+  ]
+}

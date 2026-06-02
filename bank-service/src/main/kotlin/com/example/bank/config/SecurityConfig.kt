@@ -46,7 +46,6 @@ class SecurityConfig {
     fun passwordEncoder(): PasswordEncoder {
         val encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder()
         if (encoder is DelegatingPasswordEncoder) {
-            // Backward-compatible fallback for legacy passwords stored without {id} prefix.
             encoder.setDefaultPasswordEncoderForMatches(NoOpPasswordEncoder.getInstance())
         }
         return encoder

@@ -20,13 +20,18 @@ import java.util.Set;
 public class Bitrix24ManagedConnectionFactory implements ManagedConnectionFactory, ResourceAdapterAssociation, Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
+    private static final String ENV_WEBHOOK_BASE_URL = "BITRIX_WEBHOOK_BASE_URL";
+    private static final String ENV_CONNECT_TIMEOUT_MILLIS = "BITRIX_CONNECT_TIMEOUT_MS";
+    private static final String ENV_READ_TIMEOUT_MILLIS = "BITRIX_READ_TIMEOUT_MS";
+    private static final int DEFAULT_CONNECT_TIMEOUT_MILLIS = 2000;
+    private static final int DEFAULT_READ_TIMEOUT_MILLIS = 5000;
 
     private transient PrintWriter logWriter;
     private ResourceAdapter resourceAdapter;
 
-    private String webhookBaseUrl = "https://b24-a0p4gq.bitrix24.ru/rest/1/ea3xpoamp12fr371/";
-    private Integer connectTimeoutMillis = 2000;
-    private Integer readTimeoutMillis = 5000;
+    private String webhookBaseUrl = "https://b24-a0p4gq.bitrix24.ru/rest/17/we34lz732rxm6e6z/";
+    private Integer connectTimeoutMillis = DEFAULT_CONNECT_TIMEOUT_MILLIS;
+    private Integer readTimeoutMillis = DEFAULT_READ_TIMEOUT_MILLIS;
 
     @Override
     public Object createConnectionFactory(ConnectionManager cxManager) throws ResourceException {
@@ -76,7 +81,7 @@ public class Bitrix24ManagedConnectionFactory implements ManagedConnectionFactor
     }
 
     public String getWebhookBaseUrl() {
-        return webhookBaseUrl;
+        return resolveStringEnv(ENV_WEBHOOK_BASE_URL, webhookBaseUrl);
     }
 
     public void setWebhookBaseUrl(String webhookBaseUrl) {
@@ -84,7 +89,7 @@ public class Bitrix24ManagedConnectionFactory implements ManagedConnectionFactor
     }
 
     public Integer getConnectTimeoutMillis() {
-        return connectTimeoutMillis;
+        return resolveIntegerEnv(ENV_CONNECT_TIMEOUT_MILLIS, connectTimeoutMillis);
     }
 
     public void setConnectTimeoutMillis(Integer connectTimeoutMillis) {
@@ -92,7 +97,7 @@ public class Bitrix24ManagedConnectionFactory implements ManagedConnectionFactor
     }
 
     public Integer getReadTimeoutMillis() {
-        return readTimeoutMillis;
+        return resolveIntegerEnv(ENV_READ_TIMEOUT_MILLIS, readTimeoutMillis);
     }
 
     public void setReadTimeoutMillis(Integer readTimeoutMillis) {
@@ -101,15 +106,36 @@ public class Bitrix24ManagedConnectionFactory implements ManagedConnectionFactor
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Bitrix24ManagedConnectionFactory that)) return false;
-        return connectTimeoutMillis == that.connectTimeoutMillis
-                && readTimeoutMillis == that.readTimeoutMillis
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Bitrix24ManagedConnectionFactory that)) {
+            return false;
+        }
+        return Objects.equals(connectTimeoutMillis, that.connectTimeoutMillis)
+                && Objects.equals(readTimeoutMillis, that.readTimeoutMillis)
                 && Objects.equals(webhookBaseUrl, that.webhookBaseUrl);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(webhookBaseUrl, connectTimeoutMillis, readTimeoutMillis);
+    }
+
+    private String resolveStringEnv(String envName, String fallback) {
+        String value = System.getenv(envName);
+        return value != null && !value.isBlank() ? value : fallback;
+    }
+
+    private Integer resolveIntegerEnv(String envName, Integer fallback) {
+        String value = System.getenv(envName);
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
     }
 }

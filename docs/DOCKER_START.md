@@ -47,7 +47,7 @@ docker compose logs -f wildfly-bitrix-ra bank-service
 Если нужно переопределить:
 
 ```bash
-BITRIX_WEBHOOK_BASE_URL="https://.../rest/1/.../" docker compose up --build -d
+BITRIX_WEBHOOK_BASE_URL="https://.../rest/17/.../" docker compose up --build -d
 ```
 
 ## 5) Пересборка только после изменений

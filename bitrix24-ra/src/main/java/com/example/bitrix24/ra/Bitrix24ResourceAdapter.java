@@ -14,30 +14,23 @@ import java.io.Serializable;
 public class Bitrix24ResourceAdapter implements ResourceAdapter, Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
+    private static final XAResource[] EMPTY_XA_RESOURCES = new XAResource[0];
 
     @Override
-    public void start(BootstrapContext ctx) throws ResourceAdapterInternalException {
-        // no-op
-    }
+    public void start(BootstrapContext ctx) throws ResourceAdapterInternalException {}
 
     @Override
-    public void stop() {
-        // no-op
-    }
+    public void stop() {}
 
     @Override
-    public void endpointActivation(MessageEndpointFactory endpointFactory, ActivationSpec spec) {
-        // inbound not supported
-    }
+    public void endpointActivation(MessageEndpointFactory endpointFactory, ActivationSpec spec) {}
 
     @Override
-    public void endpointDeactivation(MessageEndpointFactory endpointFactory, ActivationSpec spec) {
-        // inbound not supported
-    }
+    public void endpointDeactivation(MessageEndpointFactory endpointFactory, ActivationSpec spec) {}
 
     @Override
     public XAResource[] getXAResources(ActivationSpec[] specs) throws ResourceException {
-        return new XAResource[0];
+        return EMPTY_XA_RESOURCES;
     }
 
     @Override

@@ -1,0 +1,41 @@
+package com.example.ticket.bpm
+
+object CamundaOrderProcess {
+    const val PROCESS_CLIENT_KEY = "Process_Client"
+    const val PROCESS_DEFINITION_KEY = "Process_Server"
+    const val PROCESS_SERVICE_OPERATIONS_KEY = "Process_ServiceOperations"
+    const val PROCESS_ROUTE_MANAGE_KEY = "Process_1ah8gm5"
+    const val TASK_DEF_CLIENT_CONFIRM_3DS = "Task_Client_Confirm3DS"
+    const val TASK_DEF_SERVER_CONFIRM_3DS = "Task_Server_Confirm3DSWithBank"
+
+    const val MESSAGE_PAY_REQUESTED = "MSG_PAY_REQUESTED"
+    const val MESSAGE_BANK_SUCCESS = "MSG_BANK_SUCCESS"
+    const val MESSAGE_BANK_3DS_REQUIRED = "MSG_BANK_3DS_REQUIRED"
+    const val MESSAGE_BANK_DECLINED = "MSG_BANK_DECLINED"
+    const val MESSAGE_CANCEL_REQUESTED = "MSG_CANCEL_REQUESTED"
+
+    const val VAR_ROUTE_ID = "routeId"
+    const val VAR_SEAT = "seat"
+    const val VAR_PASSENGER_PASSPORT_ID = "passengerPassportId"
+    const val VAR_PASSENGER_FULL_NAME = "passengerFullName"
+    const val VAR_ORDER_ID = "orderId"
+    const val VAR_AMOUNT = "amount"
+    const val VAR_CARD_NUMBER = "cardNumber"
+    const val VAR_EXPIRATION_DATE = "expirationDate"
+    const val VAR_CVV = "cvv"
+    const val VAR_RETRY_MODE = "retryMode"
+    const val VAR_3DS_CODE = "threeDsCode"
+    const val VAR_BANK_PAYMENT_ID = "bankPaymentId"
+    const val VAR_BANK_STATUS = "bankStatus"
+    const val VAR_CANCEL_EVENT = "cancelEvent"
+    const val VAR_REQUEST_TYPE = "requestType"
+    const val VAR_CREATED_TTL = "createdTtlIso"
+    const val VAR_PENDING_3DS_TTL = "pending3dsTtlIso"
+    const val VAR_CLIENT_ORDER_STATE = "clientOrderState"
+    const val VAR_CLIENT_PREDICTED_3DS = "clientPredicted3ds"
+    const val VAR_TICKET_ID = "ticketId"
+
+    const val REQUEST_TYPE_CANCEL_ORDER = "CANCEL_ORDER"
+    const val REQUEST_TYPE_RETRY_PAYMENT = "RETRY_PAYMENT"
+    const val REQUEST_TYPE_PATCH_ROUTE = "PATCH_ROUTE"
+}

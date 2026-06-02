@@ -1,7 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <users>
-  <user username="client" password="{noop}client123" roles="CLIENT"/>
-  <user username="operator" password="{noop}operator123" roles="OPERATOR"/>
-  <user username="service_bank" password="{noop}service123" roles="SERVICE_BANK"/>
-  <user username="admin" password="{noop}admin123" roles="ADMIN"/>
-  <user username="client_1775890383727" password="{bcrypt}$2a$10$KMJSUL.xLbTuG./l7nvxReDCBByB9hkCoI787HQHRETtlg7xEuh2G" roles="CLIENT"/>
+  <user password="{noop}client123" roles="CLIENT" username="client"/>
+  <user password="{noop}operator123" roles="OPERATOR" username="operator"/>
+  <user password="{noop}service123" roles="SERVICE_BANK" username="service_bank"/>
+  <user password="{noop}admin123" roles="ADMIN" username="admin"/>
+  <user password="{bcrypt}$2a$10$KMJSUL.xLbTuG./l7nvxReDCBByB9hkCoI787HQHRETtlg7xEuh2G" roles="CLIENT" username="client_1775890383727"/>
+  <user password="{bcrypt}$2a$10$UYLHI/Ey.BPTVKlDtsrsBeRd7IWEBdEtjAM8I.yRdeCRCobcG6RNe" roles="CLIENT" username="lol"/>
+  <user password="{bcrypt}$2a$10$At5BlEBnLxWqx8mTS.eiGuXo9uJRM7Bf3r0EtHNmHgRnJwaoJK4wu" roles="CLIENT" username="client2"/>
+  <user password="{bcrypt}$2a$10$OjUsOitZGCgijSFzeg5uXedNCw92GrydnN.hLrjkRrsYcUpFTcP6y" roles="CLIENT" username="client3"/>
+
 </users>

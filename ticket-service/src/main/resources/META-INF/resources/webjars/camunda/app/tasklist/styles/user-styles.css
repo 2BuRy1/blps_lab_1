@@ -1,0 +1,5 @@
+form[name="genericForm"] .form-group:has(#business-key-field),
+label[for="business-key-field"],
+#business-key-field {
+  display: none !important;
+}

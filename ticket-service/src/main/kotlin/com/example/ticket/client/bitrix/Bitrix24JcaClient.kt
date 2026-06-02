@@ -8,6 +8,7 @@ import jakarta.resource.ResourceException
 import jakarta.resource.cci.ConnectionFactory
 import jakarta.resource.cci.MappedRecord
 import jakarta.resource.cci.Record
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import javax.naming.InitialContext
@@ -46,6 +47,7 @@ class Bitrix24JcaClient(
     private val connectionFactory: ConnectionFactory by lazy { lookupConnectionFactory() }
 
     fun createDeal(payload: Bitrix24DealSyncPayload): Long {
+        log.info("Bitrix24 JCA createDeal: orderId={}, operation={}", payload.orderId, addOperation)
         val response = execute(
             operation = addOperation,
             body = Bitrix24DealAddRequest(fields = toDealFields(payload)),
@@ -67,6 +69,7 @@ class Bitrix24JcaClient(
     }
 
     fun updateDeal(dealId: Long, payload: Bitrix24DealSyncPayload) {
+        log.info("Bitrix24 JCA updateDeal: orderId={}, dealId={}, operation={}, event={}", payload.orderId, dealId, updateOperation, payload.event)
         execute(
             operation = updateOperation,
             body = Bitrix24DealUpdateRequest(id = dealId, fields = toDealFields(payload)),
@@ -81,6 +84,7 @@ class Bitrix24JcaClient(
                     message = "Failed to serialize Bitrix24 payload: ${ex.message}",
                 )
             }
+        log.info("Bitrix24 JCA execute: jndiName={}, operation={}, payloadSize={}", jndiName, operation, payload.length)
 
         val connection = try {
             connectionFactory.connection
@@ -114,6 +118,7 @@ class Bitrix24JcaClient(
         }
 
         val rawResponse = extractResponseBody(responseRecord)
+        log.info("Bitrix24 JCA raw response: operation={}, response={}", operation, rawResponse.take(500))
 
         val json = try {
             objectMapper.readTree(rawResponse)
@@ -171,6 +176,12 @@ class Bitrix24JcaClient(
     }
 
     private fun lookupConnectionFactory(): ConnectionFactory {
+        log.info(
+            "Bitrix24 JCA lookup started: jndiName={}, initialContextFactory={}, providerUrl={}",
+            jndiName,
+            initialContextFactory.ifBlank { "<local>" },
+            providerUrl.ifBlank { "<local>" },
+        )
         val initialContext = try {
             buildInitialContext()
         } catch (ex: NamingException) {
@@ -203,11 +214,13 @@ class Bitrix24JcaClient(
             )
         }
 
-        return lookedUp as? ConnectionFactory
+        val connectionFactory = lookedUp as? ConnectionFactory
             ?: throw IntegrationUnavailableException(
                 service = IntegrationUnavailableError.Service.BITRIX24,
                 message = "JNDI '$jndiName' is not a jakarta.resource.cci.ConnectionFactory.",
             )
+        log.info("Bitrix24 JCA lookup finished: jndiName={}, matchedCandidates={}", jndiName, attemptedNames.joinToString())
+        return connectionFactory
     }
 
     private fun buildJndiCandidates(): List<String> {
@@ -331,5 +344,9 @@ class Bitrix24JcaClient(
             "CANCELLED" -> cancelledStageId
             else -> newStageId
         }
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(Bitrix24JcaClient::class.java)
     }
 }

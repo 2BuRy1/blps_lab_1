@@ -8,6 +8,8 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import jakarta.annotation.PostConstruct
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.common.KafkaException
+import org.apache.kafka.common.errors.WakeupException
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.DisposableBean
 import org.springframework.stereotype.Service
@@ -31,7 +33,9 @@ class ConsumerService(
         private val log = LoggerFactory.getLogger(ConsumerService::class.java)
     }
 
+    @Volatile
     private var running = true
+    private val consumerLock = Any()
 
     @PostConstruct
     fun start() {
@@ -52,7 +56,9 @@ class ConsumerService(
     private fun pollLoop() {
         try {
             while (running) {
-                val records = kafkaConsumer.poll(Duration.ofMillis(kafkaProperties.consumer.pollTimeoutMs))
+                val records = synchronized(consumerLock) {
+                    kafkaConsumer.poll(Duration.ofMillis(kafkaProperties.consumer.pollTimeoutMs))
+                }
                 var batchProcessedSuccessfully = true
 
                 for (record in records) {
@@ -78,13 +84,15 @@ class ConsumerService(
                 }
 
                 if (!records.isEmpty && batchProcessedSuccessfully) {
-                    kafkaConsumer.commitSync()
+                    synchronized(consumerLock) {
+                        kafkaConsumer.commitSync()
+                    }
                 }
             }
-        } catch (_: org.apache.kafka.common.errors.WakeupException) {
+        } catch (_: WakeupException) {
             log.info("Consumer остановлен")
         } finally {
-            kafkaConsumer.close()
+            closeConsumer()
         }
     }
 
@@ -135,6 +143,26 @@ class ConsumerService(
 
     override fun destroy() {
         running = false
-        kafkaConsumer.wakeup()
+        runCatching {
+            synchronized(consumerLock) {
+                kafkaConsumer.wakeup()
+            }
+        }.onFailure { ex ->
+            log.warn("Kafka consumer wakeup failed during shutdown: {}", ex.message)
+        }
+    }
+
+    private fun closeConsumer() {
+        runCatching {
+            synchronized(consumerLock) {
+                kafkaConsumer.close()
+            }
+        }.onFailure { ex ->
+            if (ex is KafkaException || ex is ConcurrentModificationException || ex is IllegalStateException) {
+                log.warn("Kafka consumer close failed during shutdown: {}", ex.message)
+            } else {
+                log.warn("Unexpected Kafka consumer close error during shutdown", ex)
+            }
+        }
     }
 }

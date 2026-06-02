@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<process-application xmlns="http://www.camunda.org/schema/1.0/ProcessApplication">
+  <process-archive name="ticket-service">
+    <process-engine>default</process-engine>
+    <resource>processes/rzhd_process.bpmn</resource>
+    <properties>
+      <property name="isDeleteUponUndeploy">false</property>
+    </properties>
+  </process-archive>
+</process-application>

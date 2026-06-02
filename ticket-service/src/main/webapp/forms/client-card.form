@@ -1,0 +1,36 @@
+{
+  "id": "client-card",
+  "type": "default",
+  "schemaVersion": 12,
+  "components": [
+    {
+      "label": "Validation error",
+      "type": "html",
+      "content": "<div style=\"position: fixed; right: 24px; bottom: 24px; max-width: 360px; padding: 12px; border-radius: 6px; background: red; color: white; white-space: normal;\">{{validationError}}</div>",
+      "conditional": {
+        "hide": "=validationError = null or validationError = \"\""
+      }
+    },
+    {
+      "label": "Card Number",
+      "type": "textfield",
+      "key": "cardNumber",
+      "validate": {
+      }
+    },
+    {
+      "label": "Expiration Date",
+      "type": "textfield",
+      "key": "expirationDate",
+      "validate": {
+      }
+    },
+    {
+      "label": "CVV",
+      "type": "textfield",
+      "key": "cvv",
+      "validate": {
+      }
+    }
+  ]
+}

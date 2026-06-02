@@ -2,20 +2,20 @@ package com.example.ticket.service
 
 import com.example.ticket.client.BankPayDecision
 import com.example.ticket.config.CustomKafkaProperties
+import com.example.ticket.exception.WorkflowCorrelationException
 import com.example.ticket.persistence.entity.OrderStatus
 import com.example.ticket.persistence.repository.OrderRepository
-import com.example.ticket.service.integration.Bitrix24OrderSyncService
+import com.example.ticket.bpm.CamundaOrderWorkflowService
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import jakarta.annotation.PostConstruct
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.common.KafkaException
 import org.apache.kafka.common.errors.WakeupException
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.DisposableBean
 import org.springframework.stereotype.Service
-import org.springframework.transaction.PlatformTransactionManager
-import org.springframework.transaction.support.TransactionTemplate
 import java.time.Duration
 
 @Service
@@ -23,19 +23,19 @@ class ConsumerService(
     private val kafkaConsumer: KafkaConsumer<String, String>,
     private val kafkaProperties: CustomKafkaProperties,
     private val objectMapper: ObjectMapper,
-    transactionManager: PlatformTransactionManager,
-    private val ticketProcessService: TicketProcessService,
     private val orderRepository: OrderRepository,
-    private val bitrix24OrderSyncService: Bitrix24OrderSyncService,
+    private val camundaOrderWorkflowService: CamundaOrderWorkflowService,
 ) : DisposableBean {
-
-    private val transactionTemplate = TransactionTemplate(transactionManager)
 
     companion object {
         private val log = LoggerFactory.getLogger(ConsumerService::class.java)
+        private val correlationAttempts = 20
+        private val correlationRetryDelay = Duration.ofMillis(250)
     }
 
+    @Volatile
     private var running = true
+    private val consumerLock = Any()
 
     @PostConstruct
     fun start() {
@@ -56,7 +56,9 @@ class ConsumerService(
     private fun pollLoop() {
         try {
             while (running) {
-                val records = kafkaConsumer.poll(Duration.ofMillis(kafkaProperties.consumer.pollTimeoutMs))
+                val records = synchronized(consumerLock) {
+                    kafkaConsumer.poll(Duration.ofMillis(kafkaProperties.consumer.pollTimeoutMs))
+                }
                 var batchProcessedSuccessfully = true
 
                 for (record in records) {
@@ -82,13 +84,15 @@ class ConsumerService(
                 }
 
                 if (!records.isEmpty && batchProcessedSuccessfully) {
-                    kafkaConsumer.commitSync()
+                    synchronized(consumerLock) {
+                        kafkaConsumer.commitSync()
+                    }
                 }
             }
         } catch (_: WakeupException) {
             log.info("Consumer остановлен")
         } finally {
-            kafkaConsumer.close()
+            closeConsumer()
         }
     }
 
@@ -102,41 +106,78 @@ class ConsumerService(
     }
 
     private fun handleBankResult(value: String, source: String) {
-        transactionTemplate.execute {
-            val bankResult = objectMapper.readValue<BankPayDecision>(value)
-            val order = orderRepository.findByOrderIdForUpdate(bankResult.orderId)
-            if (order == null) {
-                log.warn("orderId={} не найден для результата source={}", bankResult.orderId, source)
-                return@execute
+        val bankResult = objectMapper.readValue<BankPayDecision>(value)
+        log.info(
+            "Bank result received: source={}, orderId={}, status={}, paymentId={}",
+            source,
+            bankResult.orderId,
+            bankResult.status,
+            bankResult.paymentId,
+        )
+
+        repeat(correlationAttempts) { attempt ->
+            try {
+                camundaOrderWorkflowService.correlateBankDecision(bankResult)
+                return
+            } catch (ex: WorkflowCorrelationException) {
+                if (shouldIgnoreAsAlreadyApplied(bankResult)) {
+                    log.warn(
+                        "Ignoring duplicate bank result without active wait-state: source={}, orderId={}, status={}",
+                        source,
+                        bankResult.orderId,
+                        bankResult.status,
+                    )
+                    return
+                }
+                if (attempt == correlationAttempts - 1) {
+                    throw ex
+                }
+                Thread.sleep(correlationRetryDelay.toMillis())
             }
+        }
+    }
 
-            when (bankResult.status) {
-                BankPayDecision.Status.SUCCESS -> {
-                    if (order.status != OrderStatus.PAID) {
-                        ticketProcessService.issueTicket(order)
-                    }
-                }
+    private fun shouldIgnoreAsAlreadyApplied(bankResult: BankPayDecision): Boolean {
+        val order = orderRepository.findById(bankResult.orderId).orElse(null)
+            ?: return true
 
-                BankPayDecision.Status.REQUIRES_3DS -> {
-                    val paymentId = bankResult.paymentId
-                        ?: throw IllegalStateException("Bank response missing payment_id for REQUIRES_3DS")
-                    if (order.status != OrderStatus.PAID && order.status != OrderStatus.CANCELLED) {
-                        ticketProcessService.markOrderPending3ds(order, paymentId)
-                        bitrix24OrderSyncService.syncOrderStateBestEffort(order, event = "THREE_DS_REQUIRED")
-                    }
-                }
-
-                BankPayDecision.Status.DECLINED -> {
-                    if (order.status != OrderStatus.PAID && order.status != OrderStatus.CANCELLED) {
-                        ticketProcessService.compensateDeclinedOrder(order)
-                    }
-                }
+        return when (bankResult.status) {
+            BankPayDecision.Status.SUCCESS -> order.status == OrderStatus.PAID
+            BankPayDecision.Status.REQUIRES_3DS -> {
+                order.status == OrderStatus.PENDING_3DS ||
+                    order.status == OrderStatus.CONFIRMING_3DS ||
+                    order.status == OrderStatus.PAID ||
+                    order.status == OrderStatus.CANCELLED
+            }
+            BankPayDecision.Status.DECLINED -> {
+                order.status == OrderStatus.DECLINED ||
+                    order.status == OrderStatus.CANCELLED
             }
         }
     }
 
     override fun destroy() {
         running = false
-        kafkaConsumer.wakeup()
+        runCatching {
+            synchronized(consumerLock) {
+                kafkaConsumer.wakeup()
+            }
+        }.onFailure { ex ->
+            log.warn("Kafka consumer wakeup failed during shutdown: {}", ex.message)
+        }
+    }
+
+    private fun closeConsumer() {
+        runCatching {
+            synchronized(consumerLock) {
+                kafkaConsumer.close()
+            }
+        }.onFailure { ex ->
+            if (ex is KafkaException || ex is ConcurrentModificationException || ex is IllegalStateException) {
+                log.warn("Kafka consumer close failed during shutdown: {}", ex.message)
+            } else {
+                log.warn("Unexpected Kafka consumer close error during shutdown", ex)
+            }
+        }
     }
 }
